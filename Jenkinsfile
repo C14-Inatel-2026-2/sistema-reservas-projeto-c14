@@ -9,9 +9,8 @@ pipeline {
     environment {
         DEPLOY_DIR = 'C:\\deploy\\sistema-reservas'
         APP_PORT = '8081'
-        // Credenciais do MySQL local de desenvolvimento
+        // Usuario do banco local (o XAMPP usa root sem senha)
         DB_USERNAME = 'root'
-        DB_PASSWORD = ''
         // Evita que o Jenkins mate a aplicacao ao terminar o build
         JENKINS_NODE_COOKIE = 'dontKillMe'
     }
@@ -76,7 +75,7 @@ pipeline {
                     $log = Join-Path $env:DEPLOY_DIR 'app.log'
                     $erro = Join-Path $env:DEPLOY_DIR 'app-erro.log'
                     $processo = Start-Process -FilePath 'java' `
-                        -ArgumentList '-jar', (Join-Path $env:DEPLOY_DIR 'app.jar'), "--server.port=$env:APP_PORT" `
+                        -ArgumentList '-jar', (Join-Path $env:DEPLOY_DIR 'app.jar'), "--server.port=$env:APP_PORT", "--spring.datasource.username=$env:DB_USERNAME", '--spring.datasource.password=' `
                         -RedirectStandardOutput $log -RedirectStandardError $erro `
                         -WindowStyle Hidden -PassThru
                     $processo.Id | Set-Content $pidFile
