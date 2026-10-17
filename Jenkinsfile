@@ -84,14 +84,16 @@ pipeline {
                     $ok = $false
                     for ($i = 0; $i -lt 30; $i++) {
                         Start-Sleep -Seconds 2
+                        if ($processo.HasExited) { break }
                         try {
-                            Invoke-WebRequest -Uri "http://localhost:$env:APP_PORT/usuarios" -UseBasicParsing | Out-Null
+                            Invoke-WebRequest -Uri "http://127.0.0.1:$env:APP_PORT/usuarios" -UseBasicParsing -TimeoutSec 3 | Out-Null
                             $ok = $true
                             break
                         } catch { }
                     }
                     if (-not $ok) {
-                        Write-Error 'A aplicacao nao respondeu apos o deploy.'
+                        Write-Host 'A aplicacao nao respondeu apos o deploy. Ultimas linhas do log:'
+                        Get-Content $log -Tail 15
                         exit 1
                     }
                     Write-Host "Aplicacao no ar em http://localhost:$env:APP_PORT"
