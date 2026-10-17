@@ -66,8 +66,11 @@ pipeline {
                     $pidFile = Join-Path $env:DEPLOY_DIR 'app.pid'
 
                     if (Test-Path $pidFile) {
-                        taskkill /PID (Get-Content $pidFile) /T /F | Out-Null
-                        Start-Sleep -Seconds 2
+                        $antigo = Get-Content $pidFile
+                        if (Get-Process -Id $antigo -ErrorAction SilentlyContinue) {
+                            taskkill /PID $antigo /T /F | Out-Null
+                            Start-Sleep -Seconds 2
+                        }
                     }
 
                     Copy-Item 'backend\\target\\sistema-reservas-*.jar' (Join-Path $env:DEPLOY_DIR 'app.jar') -Force
@@ -101,6 +104,7 @@ pipeline {
                         exit 1
                     }
                     Write-Host "Aplicacao no ar em http://localhost:$env:APP_PORT"
+                    exit 0
                 '''
             }
         }
