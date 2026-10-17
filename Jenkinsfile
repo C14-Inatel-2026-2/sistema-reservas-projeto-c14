@@ -66,7 +66,7 @@ pipeline {
                     $pidFile = Join-Path $env:DEPLOY_DIR 'app.pid'
 
                     if (Test-Path $pidFile) {
-                        Stop-Process -Id (Get-Content $pidFile) -Force -ErrorAction SilentlyContinue
+                        taskkill /PID (Get-Content $pidFile) /T /F | Out-Null
                         Start-Sleep -Seconds 2
                     }
 
@@ -74,16 +74,21 @@ pipeline {
 
                     $log = Join-Path $env:DEPLOY_DIR 'app.log'
                     $erro = Join-Path $env:DEPLOY_DIR 'app-erro.log'
-                    $processo = Start-Process -FilePath 'java' `
-                        -ArgumentList '-jar', (Join-Path $env:DEPLOY_DIR 'app.jar'), "--server.port=$env:APP_PORT", "--spring.datasource.username=$env:DB_USERNAME", '--spring.datasource.password=' `
-                        -RedirectStandardOutput $log -RedirectStandardError $erro `
-                        -WindowStyle Hidden -PassThru
-                    $processo.Id | Set-Content $pidFile
+                    $jar = Join-Path $env:DEPLOY_DIR 'app.jar'
+
+                    # Win32_Process.Create inicia a aplicacao desacoplada do Jenkins,
+                    # senao o passo fica esperando o processo Java terminar
+                    $comando = 'cmd.exe /c java -jar "' + $jar + '" --server.port=' + $env:APP_PORT +
+                        ' --spring.datasource.username=' + $env:DB_USERNAME +
+                        ' --spring.datasource.password= > "' + $log + '" 2> "' + $erro + '"'
+                    $resultado = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = $comando }
+                    $appPid = $resultado.ProcessId
+                    $appPid | Set-Content $pidFile
 
                     $ok = $false
                     for ($i = 0; $i -lt 30; $i++) {
                         Start-Sleep -Seconds 2
-                        if ($processo.HasExited) { break }
+                        if (-not (Get-Process -Id $appPid -ErrorAction SilentlyContinue)) { break }
                         try {
                             Invoke-WebRequest -Uri "http://127.0.0.1:$env:APP_PORT/usuarios" -UseBasicParsing -TimeoutSec 3 | Out-Null
                             $ok = $true
