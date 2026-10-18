@@ -46,7 +46,8 @@ pipeline {
             steps {
                 recordCoverage(
                     tools: [[parser: 'JACOCO', pattern: 'backend/target/site/jacoco/jacoco.xml']],
-                    sourceCodeRetention: 'EVERY_BUILD'
+                    sourceCodeRetention: 'EVERY_BUILD',
+                    qualityGates: [[threshold: 40.0, metric: 'LINE', baseline: 'PROJECT', criticality: 'UNSTABLE']]
                 )
                 publishHTML(target: [
                     reportName: 'Cobertura JaCoCo',
