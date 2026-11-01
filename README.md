@@ -140,7 +140,7 @@ A pipeline está no `Jenkinsfile` e roda em um agente Windows:
 
 O quadro foi organizado em 30/10/2026 com Scrum adaptado à equipe de dois integrantes. A sprint atual, **Sprint E5**, vai de 30/10 a 13/11/2026. Seu objetivo é consolidar a documentação da E5, vincular código e testes e revisar os critérios de aceite das funcionalidades existentes. As melhorias novas ficam no backlog.
 
-Vinícius organiza o Jira, os requisitos e a documentação; Raphael mantém a pipeline e participa da revisão. Ambos desenvolvem e revisam as alterações do outro. Para formalizar os papéis do Scrum, a proposta deste PR é Vinícius como Scrum Master e Raphael como Product Owner, acumulando o papel de desenvolvedores. Essa divisão precisa ser confirmada pelo grupo na revisão.
+Vinícius organiza o Jira, os requisitos e a documentação; Raphael mantém a pipeline e participa da revisão. Ambos desenvolvem e revisam as alterações do outro. Nos papéis do Scrum, Vinícius atua como Scrum Master e Raphael como Product Owner, responsável por priorizar o backlog, e ambos acumulam o papel de desenvolvedores.
 
 O planejamento seleciona os itens no início da sprint. O acompanhamento ocorre pelo quadro e pelo chat do grupo, com atualização a cada mudança de status e registro dos impedimentos. A revisão do incremento e a retrospectiva ficam para o encerramento da sprint. O histórico dessas práticas começa com a adoção do Jira; as funcionalidades anteriores foram relacionadas ao código retrospectivamente.
 
@@ -159,7 +159,7 @@ O acompanhamento considera quantidade de itens por status, itens concluídos por
 
 ### Histórias e rastreabilidade
 
-Situação em 30/10/2026. O Jira concentra os critérios de aceite e o status atualizado.
+Situação em 31/10/2026. O Jira concentra os critérios de aceite e o status atualizado.
 
 | História | Requisitos | Situação | Código e testes |
 |---|---|---|---|
@@ -168,10 +168,11 @@ Situação em 30/10/2026. O Jira concentra os critérios de aceite e o status at
 | [US03 / SCRUM-7 — Desativar recurso](https://reservas-c14.atlassian.net/browse/SCRUM-7) | RF16 | To Do; implementação pendente | PR e testes pendentes |
 | [US04 / SCRUM-8 — Armazenar senha com hash](https://reservas-c14.atlassian.net/browse/SCRUM-8) | RNF08 | To Do; implementação pendente | PR e testes pendentes |
 | [US05 / SCRUM-9 — Impedir cancelamento após o início](https://reservas-c14.atlassian.net/browse/SCRUM-9) | RF17 | To Do; implementação pendente | PR e testes pendentes |
+| [US06 / SCRUM-10 — Cadastrar usuário](https://reservas-c14.atlassian.net/browse/SCRUM-10) | RF01–RF02 | In Review; funcionalidade existente, validação parcial | [API](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/commit/b760cab), [testes do serviço](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/commit/102fc18), [teste do controller](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/commit/695b328), [UsuarioServiceTest](backend/src/test/java/com/reservas/sistemareservas/service/UsuarioServiceTest.java) e [UsuarioControllerTest](backend/src/test/java/com/reservas/sistemareservas/controller/UsuarioControllerTest.java) |
 
-Na US01, faltam testes do início no passado, da consulta real de conflitos no banco e dos códigos HTTP. Na US02, faltam testes da segunda tentativa de cancelamento e dos códigos HTTP. Os testes de intervalos e os mocks de repositório não comprovam o comportamento da consulta SQL. Os arquivos foram inspecionados nesta revisão; a execução local ficou pendente porque o ambiente disponível tem JDK 17 e o projeto exige JDK 21.
+Na US01, faltam testes do início no passado, da consulta real de conflitos no banco e dos códigos HTTP. Na US02, faltam testes da segunda tentativa de cancelamento e dos códigos HTTP. Na US06, faltam testes dos códigos HTTP 201 e 409, dos casos de 400 com nome vazio, senha curta e tipo ausente e da ausência da senha na resposta. Os testes de intervalos e os mocks de repositório não comprovam o comportamento da consulta SQL. A suíte foi executada em 31/10/2026 com JDK 21: 36 testes, todos passando. A API não foi testada em execução com o banco.
 
-Cada integrante deve cadastrar ao menos uma história. As cinco histórias acima estão na conta do Vinícius; o cadastro da história do Raphael ainda está pendente. A E5 também depende da revisão e integração deste README, da conferência do acesso do monitor ao Jira e do envio dos links pelo líder.
+Cada integrante cadastrou ao menos uma história: as US01 a US05 estão na conta do Vinícius, e a US06, na do Raphael. A E5 ainda depende da revisão e integração deste README, da conferência do acesso do monitor ao Jira e do envio dos links pelo líder.
 
 As tarefas de acompanhamento são [documentação / SCRUM-1](https://reservas-c14.atlassian.net/browse/SCRUM-1), [revisão do README / SCRUM-2](https://reservas-c14.atlassian.net/browse/SCRUM-2) e [participação, acesso e envio / SCRUM-3](https://reservas-c14.atlassian.net/browse/SCRUM-3). Elas substituíram os cartões de exemplo criados no cadastro inicial.
 
