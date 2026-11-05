@@ -8,7 +8,7 @@ Projeto da disciplina C14 – Engenharia de Software (Inatel, 2026/2). O projeto
 
 - Java 21, Spring Boot 4, Maven (wrapper incluso)
 - MySQL 8 e Flyway (migrations)
-- Spring Data JPA, Bean Validation, Lombok
+- Spring Data JPA, Bean Validation, Lombok, Spring Security Crypto (BCrypt)
 - JUnit 5, Mockito, JaCoCo
 - Jenkins (CI/CD)
 
@@ -43,6 +43,10 @@ cd backend
 ```
 
 A API sobe em `http://localhost:8080`.
+
+Novos cadastros armazenam a senha com [BCrypt](https://docs.spring.io/spring-security/reference/features/integrations/cryptography.html#spring-security-crypto-passwordencoders). A senha deve ter pelo menos 6 caracteres e no máximo 72 bytes em UTF-8; acima desse limite, o cadastro retorna HTTP 422. As respostas de cadastro, consulta e listagem não incluem a senha nem seu hash.
+
+Senhas de usuários cadastrados antes dessa alteração não são convertidas automaticamente. Esses registros precisam de migração antes de considerar o RNF08 atendido para toda a base.
 
 ## Testes
 
@@ -93,7 +97,7 @@ Erros seguem o formato `{"status": 422, "mensagem": "...", "detalhes": []}`.
 
 | ID | Requisito | Status |
 |---|---|---|
-| RF01 | Cadastrar usuário com nome, e-mail, senha (mínimo 6 caracteres) e tipo (aluno, professor ou funcionário). | Implementado |
+| RF01 | Cadastrar usuário com nome, e-mail, senha (mínimo 6 caracteres e máximo 72 bytes em UTF-8) e tipo (aluno, professor ou funcionário). | Implementado |
 | RF02 | Impedir o cadastro de dois usuários com o mesmo e-mail. | Implementado |
 | RF03 | Listar usuários e buscar usuário por id, sem expor a senha. | Implementado |
 | RF04 | Cadastrar recursos de três tipos: sala de estudo (capacidade, projetor), quadra (modalidade, coberta) e equipamento de laboratório (laboratório, número de patrimônio). | Implementado |
@@ -123,7 +127,7 @@ Erros seguem o formato `{"status": 422, "mensagem": "...", "detalhes": []}`.
 | RNF05 | Sinalizar o build como instável quando a cobertura de linhas ficar abaixo de 40%. | Quality gate no Jenkins | Configurado; percentual atual depende do relatório do build |
 | RNF06 | Automatizar build, testes, publicação de cobertura e deploy pelo Jenkins. | `Jenkinsfile` | Implementado; execução depende do agente Jenkins |
 | RNF07 | Credenciais do banco configuráveis por variáveis de ambiente (`DB_USERNAME`, `DB_PASSWORD`). | `application.properties` | Atendido |
-| RNF08 | Senhas armazenadas com hash (BCrypt), nunca em texto puro. | — | Pendente |
+| RNF08 | Senhas armazenadas com hash (BCrypt), nunca em texto puro. | `SenhaConfig`, `UsuarioService` e testes de usuário | Implementado para novos cadastros; em revisão. Registros antigos exigem migração. |
 
 ## CI/CD
 
@@ -138,7 +142,7 @@ A pipeline está no `Jenkinsfile` e roda em um agente Windows:
 
 [Quadro no Jira](https://reservas-c14.atlassian.net/jira/software/projects/SCRUM/boards/1) · [Backlog](https://reservas-c14.atlassian.net/jira/software/projects/SCRUM/boards/1/backlog)
 
-O quadro foi organizado em 30/10/2026 com Scrum adaptado à equipe de dois integrantes. A sprint atual, **Sprint E5**, vai de 30/10 a 13/11/2026. Seu objetivo é consolidar a documentação da E5, vincular código e testes e revisar os critérios de aceite das funcionalidades existentes. As melhorias novas ficam no backlog.
+O quadro foi organizado em 30/10/2026 com Scrum adaptado à equipe de dois integrantes. A sprint atual, **Sprint E5**, vai de 30/10 a 13/11/2026. Seu objetivo é consolidar a documentação da E5, vincular código e testes e revisar os critérios de aceite das funcionalidades existentes. A US04 foi selecionada para implementação; as demais melhorias novas ficam no backlog.
 
 Vinícius organiza o Jira, os requisitos e a documentação; Raphael mantém a pipeline e participa da revisão. Ambos desenvolvem e revisam as alterações do outro. Nos papéis do Scrum, Vinícius atua como Scrum Master e Raphael como Product Owner, responsável por priorizar o backlog, e ambos acumulam o papel de desenvolvedores.
 
@@ -159,26 +163,26 @@ O acompanhamento considera quantidade de itens por status, itens concluídos por
 
 ### Histórias e rastreabilidade
 
-Situação em 31/10/2026. O Jira concentra os critérios de aceite e o status atualizado.
+Situação em 04/11/2026. O Jira concentra os critérios de aceite e o status atualizado.
 
 | História | Requisitos | Situação | Código e testes |
 |---|---|---|---|
 | [US01 / SCRUM-5 — Reservar recurso](https://reservas-c14.atlassian.net/browse/SCRUM-5) | RF08–RF10 | In Review; funcionalidade existente, validação parcial | [PR #1](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/1), [PR #2](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/2), [API](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/commit/b760cab), [ReservaServiceTest](backend/src/test/java/com/reservas/sistemareservas/service/ReservaServiceTest.java), [ValidadorHorarioReservaTest](backend/src/test/java/com/reservas/sistemareservas/service/ValidadorHorarioReservaTest.java) e [testes de limites](backend/src/test/java/com/reservas/sistemareservas/service/ValidadorHorarioReservaLimitesTest.java) |
 | [US02 / SCRUM-6 — Cancelar reserva](https://reservas-c14.atlassian.net/browse/SCRUM-6) | RF07, RF12–RF13 | In Review; funcionalidade existente, validação parcial | [API](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/commit/b760cab), [testes do serviço](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/commit/102fc18), [PR #2](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/2), [ReservaServiceTest](backend/src/test/java/com/reservas/sistemareservas/service/ReservaServiceTest.java) e [RegraCancelamentoServiceTest](backend/src/test/java/com/reservas/sistemareservas/service/RegraCancelamentoServiceTest.java) |
 | [US03 / SCRUM-7 — Desativar recurso](https://reservas-c14.atlassian.net/browse/SCRUM-7) | RF16 | To Do; implementação pendente | PR e testes pendentes |
-| [US04 / SCRUM-8 — Armazenar senha com hash](https://reservas-c14.atlassian.net/browse/SCRUM-8) | RNF08 | To Do; implementação pendente | PR e testes pendentes |
+| [US04 / SCRUM-8 — Armazenar senha com hash](https://reservas-c14.atlassian.net/browse/SCRUM-8) | RNF08 | In Review; implementação dos novos cadastros aguardando revisão | [SenhaConfig](backend/src/main/java/com/reservas/sistemareservas/config/SenhaConfig.java), [UsuarioService](backend/src/main/java/com/reservas/sistemareservas/service/UsuarioService.java), [UsuarioServiceTest](backend/src/test/java/com/reservas/sistemareservas/service/UsuarioServiceTest.java) e [UsuarioControllerTest](backend/src/test/java/com/reservas/sistemareservas/controller/UsuarioControllerTest.java); PR vinculado no Jira |
 | [US05 / SCRUM-9 — Impedir cancelamento após o início](https://reservas-c14.atlassian.net/browse/SCRUM-9) | RF17 | To Do; implementação pendente | PR e testes pendentes |
 | [US06 / SCRUM-10 — Cadastrar usuário](https://reservas-c14.atlassian.net/browse/SCRUM-10) | RF01–RF02 | In Review; funcionalidade existente, validação parcial | [API](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/commit/b760cab), [testes do serviço](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/commit/102fc18), [teste do controller](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/commit/695b328), [UsuarioServiceTest](backend/src/test/java/com/reservas/sistemareservas/service/UsuarioServiceTest.java) e [UsuarioControllerTest](backend/src/test/java/com/reservas/sistemareservas/controller/UsuarioControllerTest.java) |
 
-Na US01, faltam testes do início no passado, da consulta real de conflitos no banco e dos códigos HTTP. Na US02, faltam testes da segunda tentativa de cancelamento e dos códigos HTTP. Na US06, faltam testes dos códigos HTTP 201 e 409, dos casos de 400 com nome vazio, senha curta e tipo ausente e da ausência da senha na resposta. Os testes de intervalos e os mocks de repositório não comprovam o comportamento da consulta SQL. A suíte foi executada em 31/10/2026 com JDK 21: 36 testes, todos passando. A API não foi testada em execução com o banco.
+Na US01, faltam testes do início no passado, da consulta real de conflitos no banco e dos códigos HTTP. Na US02, faltam testes da segunda tentativa de cancelamento e dos códigos HTTP. Na US06, faltam testes do código HTTP 409 e dos casos de 400 com nome vazio, senha curta e tipo ausente. Os testes de intervalos e os mocks de repositório não comprovam o comportamento da consulta SQL. Em 04/11/2026, `mvnw clean verify` passou com JDK 21: 44 testes, sem falhas, e geração do JAR e do relatório JaCoCo. A API não foi testada em execução com o banco.
 
-Cada integrante cadastrou ao menos uma história: as US01 a US05 estão na conta do Vinícius, e a US06, na do Raphael. A E5 ainda depende da revisão e integração deste README, da conferência do acesso do monitor ao Jira e do envio dos links pelo líder.
+Cada integrante cadastrou ao menos uma história: as US01 a US05 estão na conta do Vinícius, e a US06, na do Raphael. Os PRs #4 e #5 foram integrados, e o envio da E5 pelo Raphael foi confirmado por Vinícius em 04/11/2026. A tarefa SCRUM-3 ainda aguarda a confirmação do acesso do monitor ao Jira.
 
 As tarefas de acompanhamento são [documentação / SCRUM-1](https://reservas-c14.atlassian.net/browse/SCRUM-1), [revisão do README / SCRUM-2](https://reservas-c14.atlassian.net/browse/SCRUM-2) e [participação, acesso e envio / SCRUM-3](https://reservas-c14.atlassian.net/browse/SCRUM-3). Elas substituíram os cartões de exemplo criados no cadastro inicial.
 
 ## Uso de IA
 
-Foram usados Claude Opus 5.5, na sessão anterior, e Codex, na organização da E5, para leitura do repositório, rascunho de requisitos e documentação, apoio ao Jenkinsfile e cadastro das histórias no Jira. Os requisitos pendentes foram separados do comportamento já implementado, e as histórias em revisão registram as lacunas dos testes.
+Foram usados Claude Opus 5.5, na sessão anterior, e Codex para leitura do repositório, rascunho de requisitos e documentação, apoio ao Jenkinsfile, organização da E5 no Jira e implementação e testes da US04. Os requisitos pendentes foram separados do comportamento já implementado, e as histórias em revisão registram as lacunas dos testes.
 
 Exemplos de prompts reais desta conversa:
 
@@ -187,6 +191,7 @@ Exemplos de prompts reais desta conversa:
 | “na verdade, achei tudo otmo, pode aplicar tudo” | Primeira versão do README com requisitos; o texto sobre credenciais foi ajustado para reconhecer os valores padrão existentes. |
 | “confira se ta tudo certo e vamos continuar” | Conferência das US01 e US02 no Jira; o tipo dos cartões foi corrigido de Tarefa para História. |
 | “pode continuar voce mesmo?” | Cadastro das US03, US04 e US05 como pendentes, com critérios de aceite e requisitos relacionados. |
+| “ok, pode seguir” (após a proposta da US04) | Implementação do BCrypt no cadastro e testes de hash e respostas HTTP. O limite foi tratado em bytes UTF-8, e a conversão de senhas antigas ficou registrada como pendente. |
 
 A IA foi usada como apoio à redação e à execução de tarefas; a revisão e a defesa das decisões cabem aos integrantes. Antes da entrega final, cada integrante deve complementar este registro com seu uso de IA, as sugestões descartadas e as atividades realizadas sem IA.
 
