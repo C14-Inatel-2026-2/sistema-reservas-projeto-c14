@@ -6,15 +6,6 @@ pipeline {
         buildDiscarder(logRotator(numToKeepStr: '10'))
     }
 
-    environment {
-        DEPLOY_DIR = 'C:\\deploy\\sistema-reservas'
-        APP_PORT = '8081'
-        // Usuario do banco local (o XAMPP usa root sem senha)
-        DB_USERNAME = 'root'
-        // Evita que o Jenkins mate a aplicacao ao terminar o build
-        JENKINS_NODE_COOKIE = 'dontKillMe'
-    }
-
     stages {
         stage('Build') {
             steps {
@@ -34,6 +25,7 @@ pipeline {
                 dir('backend') {
                     bat '.\\mvnw.cmd -B -ntp test'
                 }
+                powershell '.\\scripts\\Test-DeployRender.ps1 -ReportPath backend/target/surefire-reports/TEST-DeployRender.xml'
             }
             post {
                 always {
@@ -61,52 +53,22 @@ pipeline {
         }
 
         stage('Deploy') {
+            when {
+                expression {
+                    def branch = env.BRANCH_NAME ?: env.GIT_BRANCH ?: ''
+                    return !env.CHANGE_ID && (branch in ['main', 'origin/main', 'refs/heads/main']) && currentBuild.currentResult == 'SUCCESS'
+                }
+            }
+            options {
+                timeout(time: 20, unit: 'MINUTES')
+            }
             steps {
-                powershell '''
-                    New-Item -ItemType Directory -Force -Path $env:DEPLOY_DIR | Out-Null
-                    $pidFile = Join-Path $env:DEPLOY_DIR 'app.pid'
-
-                    if (Test-Path $pidFile) {
-                        $antigo = Get-Content $pidFile
-                        if (Get-Process -Id $antigo -ErrorAction SilentlyContinue) {
-                            taskkill /PID $antigo /T /F | Out-Null
-                            Start-Sleep -Seconds 2
-                        }
-                    }
-
-                    Copy-Item 'backend\\target\\sistema-reservas-*.jar' (Join-Path $env:DEPLOY_DIR 'app.jar') -Force
-
-                    $log = Join-Path $env:DEPLOY_DIR 'app.log'
-                    $erro = Join-Path $env:DEPLOY_DIR 'app-erro.log'
-                    $jar = Join-Path $env:DEPLOY_DIR 'app.jar'
-
-                    # Win32_Process.Create inicia a aplicacao desacoplada do Jenkins,
-                    # senao o passo fica esperando o processo Java terminar
-                    $comando = 'cmd.exe /c java -jar "' + $jar + '" --server.port=' + $env:APP_PORT +
-                        ' --spring.datasource.username=' + $env:DB_USERNAME +
-                        ' --spring.datasource.password= > "' + $log + '" 2> "' + $erro + '"'
-                    $resultado = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = $comando }
-                    $appPid = $resultado.ProcessId
-                    $appPid | Set-Content $pidFile
-
-                    $ok = $false
-                    for ($i = 0; $i -lt 30; $i++) {
-                        Start-Sleep -Seconds 2
-                        if (-not (Get-Process -Id $appPid -ErrorAction SilentlyContinue)) { break }
-                        try {
-                            Invoke-WebRequest -Uri "http://127.0.0.1:$env:APP_PORT/usuarios" -UseBasicParsing -TimeoutSec 3 | Out-Null
-                            $ok = $true
-                            break
-                        } catch { }
-                    }
-                    if (-not $ok) {
-                        Write-Host 'A aplicacao nao respondeu apos o deploy. Ultimas linhas do log:'
-                        Get-Content $log -Tail 15
-                        exit 1
-                    }
-                    Write-Host "Aplicacao no ar em http://localhost:$env:APP_PORT"
-                    exit 0
-                '''
+                withCredentials([
+                    string(credentialsId: 'render-deploy-hook', variable: 'RENDER_DEPLOY_HOOK'),
+                    string(credentialsId: 'render-service-url', variable: 'RENDER_SERVICE_URL')
+                ]) {
+                    powershell '.\\scripts\\deploy-render.ps1 -Commit $env:GIT_COMMIT'
+                }
             }
         }
     }

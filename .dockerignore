@@ -1,0 +1,11 @@
+.git
+**/target
+**/.idea
+**/.vscode
+.env
+.env.*
+!.env.example
+**/*.pem
+**/*.p12
+**/*.jks
+certificates
