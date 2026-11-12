@@ -265,17 +265,9 @@ As tarefas de acompanhamento são [documentação / SCRUM-1](https://reservas-c1
 
 Foram usados Claude Opus 5.5, na sessão anterior, e Codex, na organização da E5, para leitura do repositório, rascunho de requisitos e documentação, apoio ao Jenkinsfile e cadastro das histórias no Jira. Os requisitos pendentes foram separados do comportamento já implementado, e as histórias em revisão registram as lacunas dos testes.
 
-Exemplos de prompts reais desta conversa:
-
-| Prompt | Resultado utilizado ou ajustado |
-|---|---|
-| “na verdade, achei tudo otmo, pode aplicar tudo” | Primeira versão do README com requisitos; o texto sobre credenciais foi ajustado para reconhecer os valores padrão existentes. |
-| “confira se ta tudo certo e vamos continuar” | Conferência das US01 e US02 no Jira; o tipo dos cartões foi corrigido de Tarefa para História. |
-| “pode continuar voce mesmo?” | Cadastro das US03, US04 e US05 como pendentes, com critérios de aceite e requisitos relacionados. |
-
 A IA foi usada como apoio à redação e à execução de tarefas; a revisão e a defesa das decisões cabem aos integrantes. Antes da entrega final, cada integrante deve complementar este registro com seu uso de IA, as sugestões descartadas e as atividades realizadas sem IA.
 
-No deploy externo, Codex apoiou Dockerfile, configuração por variáveis, script do Jenkins, testes e documentação, a partir dos pedidos “pronto, proximo passo” e “PLEASE IMPLEMENT THIS PLAN”. As opções anteriores de banco foram descartadas após conferir disponibilidade e compatibilidade. A configuração escolhida foi Render Free com TiDB Cloud Starter; a conexão TLS, a migration e a persistência no banco real foram verificadas. A publicação no Render e a execução no Jenkins permanecem pendentes de configuração e revisão.
+No deploy externo, Codex apoiou Dockerfile, configuracao por variaveis, script do Jenkins, testes e documentacao.
 
 ## Equipe
 
