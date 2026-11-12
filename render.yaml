@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: sistema-reservas-c14
+    runtime: docker
+    plan: free
+    region: virginia
+    repo: https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14
+    branch: main
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    autoDeployTrigger: "off"
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: DB_URL
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
