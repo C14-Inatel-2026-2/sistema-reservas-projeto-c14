@@ -53,7 +53,12 @@ public class ReservaService {
             throw new ConflitoException("O recurso já está reservado em parte ou todo o período solicitado.");
         }
 
-        Reserva reserva = Reserva.builder()
+        Reserva reserva = montarReserva(request, usuario, recurso);
+        return ReservaResponse.de(reservaRepository.save(reserva));
+    }
+
+    private Reserva montarReserva(ReservaRequest request, Usuario usuario, Recurso recurso) {
+        return Reserva.builder()
                 .usuario(usuario)
                 .recurso(recurso)
                 .dataHoraInicio(request.dataHoraInicio())
@@ -61,7 +66,6 @@ public class ReservaService {
                 .status(StatusReserva.PENDENTE)
                 .criadoEm(LocalDateTime.now())
                 .build();
-        return ReservaResponse.de(reservaRepository.save(reserva));
     }
 
     @Transactional
