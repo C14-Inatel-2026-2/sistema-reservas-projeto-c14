@@ -136,6 +136,8 @@ A pipeline está no `Jenkinsfile` e roda em um agente Windows:
 
 ## Refactorings
 
+Tarefas: [reservas / SCRUM-12](https://reservas-c14.atlassian.net/browse/SCRUM-12) e [recursos e testes / SCRUM-13](https://reservas-c14.atlassian.net/browse/SCRUM-13).
+
 | Autor | Smell | Refactoring e motivo | Evidência | Situação |
 |---|---|---|---|---|
 | Vinícius | `criar` mistura validação, montagem e persistência. | Extrair `montarReserva`, separando a construção da entidade das verificações. | [PR #8](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/8), commit `476febb` | Aplicado na branch; revisão e Jenkins pendentes |
@@ -146,6 +148,8 @@ A pipeline está no `Jenkinsfile` e roda em um agente Windows:
 Em 12/11/2026, `mvnw.cmd -B -ntp clean verify` com JDK 21 passou antes e depois dos dois refactorings de Vinícius: 40 testes, sem falhas. A cobertura de linhas foi de 61,93% para 62,50%. Os quatro testes novos e as verificações adicionais foram registrados antes das extrações, no commit `4ec64e1`; não contam como refactorings.
 
 Resumos da validação local: [antes](docs/evidencias/refactor-reservas-antes.json) e [depois](docs/evidencias/refactor-reservas-depois.json). Os relatórios completos JUnit e JaCoCo foram preservados localmente. Os builds do Jenkins antes e depois ainda precisam ser executados e vinculados.
+
+Antes de executar a pipeline desta branch, atualizar a base com os PRs #6/#7 integrados; o Jenkinsfile anterior ainda contém deploy local sem filtro de branch. A combinação local com BCrypt e deploy externo passou em 48 testes Java e seis testes PowerShell, mas não substitui os builds do Jenkins.
 
 ## Gestão do projeto
 
