@@ -1,5 +1,6 @@
 package com.reservas.sistemareservas.service;
 
+import com.reservas.sistemareservas.dto.CancelamentoRequest;
 import com.reservas.sistemareservas.dto.CancelamentoResponse;
 import com.reservas.sistemareservas.dto.ReservaRequest;
 import com.reservas.sistemareservas.entity.Quadra;
@@ -25,11 +26,13 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -83,8 +86,39 @@ class ReservaServiceTest {
         var resposta = reservaService.criar(request);
 
         assertEquals(StatusReserva.PENDENTE, resposta.status());
+        assertEquals(usuario.getId(), resposta.usuarioId());
+        assertEquals(usuario.getNome(), resposta.usuarioNome());
+        assertEquals(quadra.getId(), resposta.recursoId());
         assertEquals("Quadra 1", resposta.recursoNome());
+        assertEquals(inicio, resposta.dataHoraInicio());
+        assertEquals(inicio.plusHours(1), resposta.dataHoraFim());
+        assertNotNull(resposta.criadoEm());
+        assertNull(resposta.canceladoEm());
+        assertNull(resposta.motivoCancelamento());
         verify(reservaRepository).save(any(Reserva.class));
+    }
+
+    @Test
+    void criar_comInicioNoPassado_lancaRegraNegocioSemConsultarRepositorios() {
+        LocalDateTime inicio = LocalDateTime.now().minusHours(2);
+        ReservaRequest request = new ReservaRequest(1L, 10L, inicio, inicio.plusHours(1));
+
+        assertThrows(RegraNegocioException.class, () -> reservaService.criar(request));
+
+        verifyNoInteractions(usuarioRepository, recursoRepository, reservaRepository, regraRepository);
+    }
+
+    @Test
+    void criar_comRecursoInativo_lancaRegraNegocioENaoSalva() {
+        LocalDateTime inicio = LocalDateTime.now().plusDays(2);
+        ReservaRequest request = new ReservaRequest(1L, 10L, inicio, inicio.plusHours(1));
+        quadra.setAtivo(false);
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuario));
+        when(recursoRepository.findById(10L)).thenReturn(Optional.of(quadra));
+
+        assertThrows(RegraNegocioException.class, () -> reservaService.criar(request));
+
+        verifyNoInteractions(reservaRepository, regraRepository);
     }
 
     @Test
@@ -134,5 +168,39 @@ class ReservaServiceTest {
         assertThrows(RegraNegocioException.class, () -> reservaService.cancelar(5L, null));
 
         assertEquals(StatusReserva.CONFIRMADA, reserva.getStatus());
+    }
+
+    @Test
+    void cancelar_semRegra_naoAplicaMultaERegistraMotivo() {
+        Reserva reserva = reservaComecandoEm(LocalDateTime.now().plusDays(3));
+        when(reservaRepository.findById(5L)).thenReturn(Optional.of(reserva));
+        when(regraRepository.findByRecursoId(10L)).thenReturn(Optional.empty());
+
+        CancelamentoResponse resposta = reservaService.cancelar(5L,
+                new CancelamentoRequest("Mudança de planos"));
+
+        assertEquals(0.0, resposta.percentualMultaAplicada());
+        assertEquals(StatusReserva.CANCELADA, resposta.reserva().status());
+        assertEquals("Mudança de planos", resposta.reserva().motivoCancelamento());
+        assertNotNull(reserva.getCanceladoEm());
+        assertEquals(reserva.getCanceladoEm(), resposta.reserva().canceladoEm());
+    }
+
+    @Test
+    void cancelar_reservaJaCancelada_lancaRegraNegocioEPreservaDados() {
+        Reserva reserva = reservaComecandoEm(LocalDateTime.now().plusDays(3));
+        LocalDateTime canceladoEm = LocalDateTime.of(2026, 10, 1, 12, 0);
+        reserva.setStatus(StatusReserva.CANCELADA);
+        reserva.setCanceladoEm(canceladoEm);
+        reserva.setMotivoCancelamento("Motivo anterior");
+        when(reservaRepository.findById(5L)).thenReturn(Optional.of(reserva));
+
+        assertThrows(RegraNegocioException.class, () -> reservaService.cancelar(5L,
+                new CancelamentoRequest("Novo motivo")));
+
+        assertEquals(StatusReserva.CANCELADA, reserva.getStatus());
+        assertEquals(canceladoEm, reserva.getCanceladoEm());
+        assertEquals("Motivo anterior", reserva.getMotivoCancelamento());
+        verifyNoInteractions(regraRepository);
     }
 }

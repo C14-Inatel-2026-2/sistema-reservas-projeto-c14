@@ -53,7 +53,12 @@ public class ReservaService {
             throw new ConflitoException("O recurso já está reservado em parte ou todo o período solicitado.");
         }
 
-        Reserva reserva = Reserva.builder()
+        Reserva reserva = montarReserva(request, usuario, recurso);
+        return ReservaResponse.de(reservaRepository.save(reserva));
+    }
+
+    private Reserva montarReserva(ReservaRequest request, Usuario usuario, Recurso recurso) {
+        return Reserva.builder()
                 .usuario(usuario)
                 .recurso(recurso)
                 .dataHoraInicio(request.dataHoraInicio())
@@ -61,7 +66,6 @@ public class ReservaService {
                 .status(StatusReserva.PENDENTE)
                 .criadoEm(LocalDateTime.now())
                 .build();
-        return ReservaResponse.de(reservaRepository.save(reserva));
     }
 
     @Transactional
@@ -82,6 +86,15 @@ public class ReservaService {
         }
 
         LocalDateTime agora = LocalDateTime.now();
+        double multa = calcularPercentualMulta(reserva, agora);
+
+        reserva.setStatus(StatusReserva.CANCELADA);
+        reserva.setCanceladoEm(agora);
+        reserva.setMotivoCancelamento(request == null ? null : request.motivo());
+        return new CancelamentoResponse(ReservaResponse.de(reserva), multa);
+    }
+
+    private double calcularPercentualMulta(Reserva reserva, LocalDateTime agora) {
         double multa = 0;
         RegraCancelamento regra = regraRepository.findByRecursoId(reserva.getRecurso().getId()).orElse(null);
         if (regra != null) {
@@ -94,10 +107,7 @@ public class ReservaService {
             }
         }
 
-        reserva.setStatus(StatusReserva.CANCELADA);
-        reserva.setCanceladoEm(agora);
-        reserva.setMotivoCancelamento(request == null ? null : request.motivo());
-        return new CancelamentoResponse(ReservaResponse.de(reserva), multa);
+        return multa;
     }
 
     @Transactional(readOnly = true)
