@@ -1,0 +1,23 @@
+{
+  "data": "2026-11-12",
+  "etapa": "antes dos refactorings com BCrypt e deploy",
+  "ambiente": "local, JDK 21; testes do deploy em Windows PowerShell 5.1",
+  "branch": "ci/reservas-antes",
+  "commit": "0466e2c1b691458178c232402ced3dffb36dae87",
+  "comandoJava": "mvnw.cmd -B -ntp clean verify",
+  "java": {
+    "tests": 48,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "deploy": {
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "coberturaLinhas": 64.18,
+  "jenkins": "pendente",
+  "observacao": "Mesmos testes e mesma infraestrutura; no codigo de producao mudam apenas as extracoes dos dois metodos de ReservaService, preservando o comportamento."
+}

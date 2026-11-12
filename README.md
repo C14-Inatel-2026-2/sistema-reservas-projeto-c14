@@ -239,6 +239,10 @@ Resumos da validação local: [antes](docs/evidencias/refactor-reservas-antes.js
 
 Esta branch combina o deploy do PR #7 e a restauracao do BCrypt do PR #11. Integrar o #11 antes do #8. Os builds do Jenkins antes/depois continuam pendentes.
 
+Na base integrada, as duas referências passaram em 48 testes Java e seis testes PowerShell. A cobertura de linhas foi de 64,18% antes para 64,71% depois. Os testes e a infraestrutura são iguais nas duas referências; no código de produção mudam apenas as duas extrações em `ReservaService`.
+
+Referências para o Jenkins: `ci/reservas-antes` e `refactor/reservas`, no fork do Vinícius. [Configuração dos builds](docs/evidencias/jenkins-refactorings.md) · [resultado local antes](docs/evidencias/refactor-integrado-antes.json) · [resultado local depois](docs/evidencias/refactor-integrado-depois.json).
+
 ## Gestão do projeto
 
 [Quadro no Jira](https://reservas-c14.atlassian.net/jira/software/projects/SCRUM/boards/1) · [Backlog](https://reservas-c14.atlassian.net/jira/software/projects/SCRUM/boards/1/backlog)
