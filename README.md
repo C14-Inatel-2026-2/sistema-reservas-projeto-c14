@@ -134,6 +134,19 @@ A pipeline está no `Jenkinsfile` e roda em um agente Windows:
 3. **Cobertura:** publica o relatório do JaCoCo e aplica o quality gate de 40% de linhas.
 4. **Deploy:** sobe a aplicação na porta 8081 e verifica se ela responde.
 
+## Refactorings
+
+| Autor | Smell | Refactoring e motivo | Evidência | Situação |
+|---|---|---|---|---|
+| Vinícius | `criar` mistura validação, montagem e persistência. | Extrair `montarReserva`, separando a construção da entidade das verificações. | [PR #8](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/8), commit `476febb` | Aplicado na branch; revisão e Jenkins pendentes |
+| Vinícius | `cancelar` concentra regra, cálculo de multa e mudança de estado. | Extrair `calcularPercentualMulta`, preservando o mesmo instante e a comparação de antecedência. | [PR #8](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/8), commit `1b6f428` | Aplicado na branch; revisão e Jenkins pendentes |
+| Raphael | Mapeamento extenso dos tipos de recurso. | Extrair os mapeamentos específicos de `RecursoResponse`, preservando campos e proxies. | PR pendente | Planejado |
+| Raphael | Preparação repetida nos testes de cancelamento. | Extrair um helper de preparação em `ReservaServiceTest`, mantendo as verificações. | PR pendente | Planejado |
+
+Em 12/11/2026, `mvnw.cmd -B -ntp clean verify` com JDK 21 passou antes e depois dos dois refactorings de Vinícius: 40 testes, sem falhas. A cobertura de linhas foi de 61,93% para 62,50%. Os quatro testes novos e as verificações adicionais foram registrados antes das extrações, no commit `4ec64e1`; não contam como refactorings.
+
+Resumos da validação local: [antes](docs/evidencias/refactor-reservas-antes.json) e [depois](docs/evidencias/refactor-reservas-depois.json). Os relatórios completos JUnit e JaCoCo foram preservados localmente. Os builds do Jenkins antes e depois ainda precisam ser executados e vinculados.
+
 ## Gestão do projeto
 
 [Quadro no Jira](https://reservas-c14.atlassian.net/jira/software/projects/SCRUM/boards/1) · [Backlog](https://reservas-c14.atlassian.net/jira/software/projects/SCRUM/boards/1/backlog)

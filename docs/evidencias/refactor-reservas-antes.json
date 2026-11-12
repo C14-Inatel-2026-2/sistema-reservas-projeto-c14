@@ -1,0 +1,12 @@
+{
+  "etapa": "antes dos refactorings",
+  "ambiente": "local, JDK 21",
+  "comando": "mvnw.cmd -B -ntp clean verify",
+  "commit": "4ec64e11faf7969f282cb8cf0c0d413a0ea0a8d7",
+  "testes": 40,
+  "falhas": 0,
+  "erros": 0,
+  "ignorados": 0,
+  "coberturaLinhas": 61.93,
+  "jenkins": "pendente"
+}
