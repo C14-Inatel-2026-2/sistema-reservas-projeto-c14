@@ -86,6 +86,15 @@ public class ReservaService {
         }
 
         LocalDateTime agora = LocalDateTime.now();
+        double multa = calcularPercentualMulta(reserva, agora);
+
+        reserva.setStatus(StatusReserva.CANCELADA);
+        reserva.setCanceladoEm(agora);
+        reserva.setMotivoCancelamento(request == null ? null : request.motivo());
+        return new CancelamentoResponse(ReservaResponse.de(reserva), multa);
+    }
+
+    private double calcularPercentualMulta(Reserva reserva, LocalDateTime agora) {
         double multa = 0;
         RegraCancelamento regra = regraRepository.findByRecursoId(reserva.getRecurso().getId()).orElse(null);
         if (regra != null) {
@@ -98,10 +107,7 @@ public class ReservaService {
             }
         }
 
-        reserva.setStatus(StatusReserva.CANCELADA);
-        reserva.setCanceladoEm(agora);
-        reserva.setMotivoCancelamento(request == null ? null : request.motivo());
-        return new CancelamentoResponse(ReservaResponse.de(reserva), multa);
+        return multa;
     }
 
     @Transactional(readOnly = true)
