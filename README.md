@@ -7,9 +7,10 @@ Projeto da disciplina C14 – Engenharia de Software (Inatel, 2026/2). O projeto
 ## Tecnologias
 
 - Java 21, Spring Boot 4, Maven (wrapper incluso)
-- MySQL 8 e Flyway (migrations)
+- MySQL 8 no ambiente local, TiDB Cloud Starter no deploy e Flyway (migrations)
 - Spring Data JPA, Bean Validation, Lombok
 - JUnit 5, Mockito, JaCoCo
+- Spring Boot Actuator (saúde e commit publicado)
 - Jenkins (CI/CD)
 
 ## Estrutura
@@ -117,22 +118,105 @@ Erros seguem o formato `{"status": 422, "mensagem": "...", "detalhes": []}`.
 | ID | Requisito | Verificação | Status |
 |---|---|---|---|
 | RNF01 | Backend em Java 21 com Spring Boot 4, build com Maven via wrapper. | `backend/pom.xml` | Atendido |
-| RNF02 | Banco MySQL com esquema versionado por migrations Flyway. | `db/migration/` | Atendido |
+| RNF02 | Banco MySQL 8 ou TiDB compatível com MySQL, com esquema versionado por migrations Flyway. | `db/migration/` | Validado com MySQL local e TiDB Cloud via TLS |
 | RNF03 | API REST com JSON e códigos HTTP padronizados: 400 (validação), 404 (não encontrado), 409 (conflito), 422 (regra de negócio). | `GlobalExceptionHandler` | Atendido |
 | RNF04 | Erros tratados pelo `GlobalExceptionHandler` no formato `{status, mensagem, detalhes}`. | `ErroResponse` | Atendido |
 | RNF05 | Sinalizar o build como instável quando a cobertura de linhas ficar abaixo de 40%. | Quality gate no Jenkins | Configurado; percentual atual depende do relatório do build |
-| RNF06 | Automatizar build, testes, publicação de cobertura e deploy pelo Jenkins. | `Jenkinsfile` | Implementado; execução depende do agente Jenkins |
+| RNF06 | Automatizar build, testes, publicação de cobertura e deploy pelo Jenkins. | `Jenkinsfile` e `scripts/deploy-render.ps1` | Deploy externo preparado; configuração dos serviços e validação no Jenkins pendentes |
 | RNF07 | Credenciais do banco configuráveis por variáveis de ambiente (`DB_USERNAME`, `DB_PASSWORD`). | `application.properties` | Atendido |
-| RNF08 | Senhas armazenadas com hash (BCrypt), nunca em texto puro. | — | Pendente |
+| RNF08 | Senhas armazenadas com hash (BCrypt), nunca em texto puro. | [PR #11](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/11) | Restauração do BCrypt em revisão |
+| RNF09 | Disponibilizar a API por HTTPS fora da máquina do Jenkins, com banco persistente compatível com MySQL. | Docker, Render, TiDB e health check | Validado localmente; publicação externa pendente |
 
 ## CI/CD
 
 A pipeline está no `Jenkinsfile` e roda em um agente Windows:
 
 1. **Build:** compila e gera o `.jar`.
-2. **Testes:** executa os testes e publica os resultados do JUnit.
+2. **Testes:** executa os testes Java e seis testes do script de deploy; publica ambos no JUnit.
 3. **Cobertura:** publica o relatório do JaCoCo e aplica o quality gate de 40% de linhas.
-4. **Deploy:** sobe a aplicação na porta 8081 e verifica se ela responde.
+4. **Deploy:** na `main`, com build bem-sucedido e cobertura aprovada, aciona o Render para o SHA testado. Aguarda `/actuator/health` com status `UP` e `/actuator/info` com o mesmo commit. PRs e branches de desenvolvimento não publicam a aplicação.
+
+O Jenkins continua usando um agente Windows com JDK 21. As credenciais `render-deploy-hook` e `render-service-url` precisam ser cadastradas antes de executar o novo deploy. A validação completa no Jenkins depende dessa configuração.
+
+## Deploy externo
+
+O ambiente usa a API no **Render Free** e banco **TiDB Cloud Starter, MySQL Compatible**, ambos em Virginia (`us-east-1` no TiDB). A publicação externa ainda está pendente. A restauração do BCrypt no PR #11 precisa ser revisada e integrada antes da publicação para uso.
+
+### Testar com Docker localmente
+
+Copie `.env.example` para `.env` e preencha `DB_PASSWORD` e `MYSQL_ROOT_PASSWORD` com senhas de teste. Depois, na raiz do repositório:
+
+```powershell
+docker compose -p c14-reservas up -d --build
+.\scripts\Test-LocalDeploy.ps1
+docker compose -p c14-reservas down
+```
+
+A API fica em `http://127.0.0.1:8081`. O teste cria registros fictícios, reinicia a aplicação, verifica a persistência e interrompe e religa o banco para validar o health check. O volume do MySQL é preservado pelo comando `down`. A aplicação usa Java 21 e roda com usuário sem privilégios, limitada a 512 MB no Compose.
+
+### Banco no TiDB Cloud
+
+Crie uma instância **Starter**, modo **MySQL Compatible**, AWS **N. Virginia (`us-east-1`)**, com **Monthly Spending Limit = US$ 0**. A franquia inclui 5 GiB de armazenamento de linhas e 50 milhões de Request Units por mês; ao esgotar a franquia, o acesso é limitado. Não habilite planos pagos. [Planos e limites](https://docs.pingcap.com/tidbcloud/select-cluster-tier/).
+
+No SQL Editor da instância, execute [scripts/preparar-tidb.sql](scripts/preparar-tidb.sql) **antes da primeira inicialização da API**. Ele habilita `tidb_enable_check_constraint`, cria `sistema_reservas` com `utf8mb4_0900_ai_ci` e exibe os valores para conferência. O primeiro resultado deve ser `1`, e a collation deve ser `utf8mb4_0900_ai_ci`. As tabelas continuam sendo criadas pela migration V1 original do Flyway.
+
+Em **Connect**, obtenha host, porta, usuário completo (incluindo o prefixo da instância) e senha. Restrinja o firewall aos endereços de saída do serviço no Render; permita o IP local apenas durante a validação. As credenciais ficam nas variáveis de ambiente do serviço.
+
+### API no Render
+
+Após integrar os PRs, crie um **Web Service** na região **Virginia**, com o repositório público do grupo, branch `main`, linguagem **Docker**, Dockerfile `./Dockerfile`, contexto `.` e plano **Free**. Defina o health check como `/actuator/health` e desative o deploy automático; o Jenkins aciona a publicação pelo hook. O arquivo `render.yaml` registra essa configuração. [Docker no Render](https://render.com/docs/docker).
+
+Configure estas variáveis no Render:
+
+| Variável | Valor |
+|---|---|
+| `SPRING_PROFILES_ACTIVE` | `prod` |
+| `DB_URL` | JDBC URL abaixo, substituindo `HOST` e `PORTA` pelos valores do TiDB |
+| `DB_USERNAME` | Usuário completo informado pelo TiDB |
+| `DB_PASSWORD` | Senha do banco |
+
+```text
+jdbc:mysql://HOST:PORTA/sistema_reservas?sslMode=VERIFY_IDENTITY&enabledTLSProtocols=TLSv1.2,TLSv1.3&serverTimezone=UTC
+```
+
+A conexão verifica o certificado e o hostname usando as autoridades certificadoras do Java 21; não é necessário criar um truststore próprio. A senha fica separada em `DB_PASSWORD`. As credenciais não devem entrar no Git. A porta é lida de `PORT`, fornecida pelo Render. O pool usa até três conexões, com renovação em cinco minutos e keepalive de dois minutos.
+
+O Render Free suspende serviços após 15 minutos sem tráfego, e a retomada pode levar cerca de um minuto. Abra a aplicação antes da demonstração. [Limites do plano Free](https://render.com/docs/free).
+
+### Acionar pelo Jenkins
+
+Cadastre duas credenciais do tipo **Secret text**, com estes IDs:
+
+| ID | Conteúdo |
+|---|---|
+| `render-deploy-hook` | Deploy Hook obtido nas configurações do serviço no Render |
+| `render-service-url` | URL HTTPS pública da API, sem barra final |
+
+O script envia o SHA da pipeline no parâmetro `ref` do hook e espera por até 15 minutos pela aplicação saudável nessa versão. O hook não é escrito nos logs. Um build instável por cobertura abaixo de 40% não executa o deploy. [Deploy hooks do Render](https://render.com/docs/deploy-hooks).
+
+Os seis testes desse script podem ser executados sem Jenkins nem acesso ao Render:
+
+```powershell
+.\scripts\Test-DeployRender.ps1 -ReportPath backend/target/surefire-reports/TEST-DeployRender.xml
+```
+
+### Validação do deploy
+
+Em 05/11/2026: imagem Docker gerada; 36 testes Java e seis testes do script passaram. Com MySQL 8.4 real e perfil `prod`, o teste local confirmou cadastro de usuário/recurso/reserva, persistência após reiniciar, HTTP 503 sem banco e recuperação após religá-lo.
+
+Em 12/11/2026: a aplicação executou com TiDB 8.5.2 local e limite de 512 MB. A migration original passou; foram verificados cadastro, reserva, conflito de horário (HTTP 409), consulta com filtros, confirmação e cancelamento. Os três `CHECK` e as chaves estrangeiras rejeitaram dados inválidos. Os registros persistiram após reiniciar a API e o banco, e o health check retornou HTTP 503 com o banco interrompido. O consumo observado da API foi de aproximadamente 352 MB.
+
+Na mesma data, a imagem Docker foi conectada ao TiDB Cloud Starter 8.5.3 em Virginia, com `sslMode=VERIFY_IDENTITY` e as autoridades certificadoras padrão do Java 21. A migration V1 original criou as tabelas; os três `CHECK` e as chaves estrangeiras rejeitaram inserções inválidas. Cadastro, e-mail único, reserva, conflito de horário e confirmação passaram. Após substituir o contêiner da API, o usuário e a reserva confirmada continuaram salvos no banco. Também passaram os 36 testes Java e os seis testes do script de deploy, estes no PowerShell 5.1 e 7. A URL pública no Render e a execução da pipeline no Jenkins ainda estão pendentes.
+
+Para testar o ambiente publicado e guardar os IDs de registros fictícios:
+
+```powershell
+.\scripts\Test-DeployExterno.ps1 -BaseUrl https://SERVICO.onrender.com -Commit SHA_COMPLETO -Fase Criar
+# Depois de um novo deploy, confira os mesmos registros:
+.\scripts\Test-DeployExterno.ps1 -BaseUrl https://SERVICO.onrender.com -Commit SHA_PUBLICADO -Fase Conferir
+```
+
+O estado do teste fica em `backend/target/deploy-smoke.json`, fora do Git. Só marque o deploy como concluído depois de validar a versão publicada, o fluxo de reserva e a persistência após redeploy.
 
 ## Refactorings
 
@@ -149,7 +233,7 @@ Em 12/11/2026, `mvnw.cmd -B -ntp clean verify` com JDK 21 passou antes e depois 
 
 Resumos da validação local: [antes](docs/evidencias/refactor-reservas-antes.json) e [depois](docs/evidencias/refactor-reservas-depois.json). Os relatórios completos JUnit e JaCoCo foram preservados localmente. Os builds do Jenkins antes e depois ainda precisam ser executados e vinculados.
 
-Antes de executar a pipeline desta branch, atualizar a base com os PRs #6/#7 integrados; o Jenkinsfile anterior ainda contém deploy local sem filtro de branch. A combinação local com BCrypt e deploy externo passou em 48 testes Java e seis testes PowerShell, mas não substitui os builds do Jenkins.
+A branch já recebeu a `main` com o PR #7 e utiliza o Jenkinsfile que publica apenas a `main`. A restauração do BCrypt está separada no PR #11, após a reversão do #6. A combinação local anterior com BCrypt e os refactorings passou em 48 testes Java e seis testes PowerShell; os builds do Jenkins antes/depois continuam pendentes.
 
 ## Gestão do projeto
 
@@ -186,6 +270,7 @@ Situação em 31/10/2026. O Jira concentra os critérios de aceite e o status at
 | [US04 / SCRUM-8 — Armazenar senha com hash](https://reservas-c14.atlassian.net/browse/SCRUM-8) | RNF08 | To Do; implementação pendente | PR e testes pendentes |
 | [US05 / SCRUM-9 — Impedir cancelamento após o início](https://reservas-c14.atlassian.net/browse/SCRUM-9) | RF17 | To Do; implementação pendente | PR e testes pendentes |
 | [US06 / SCRUM-10 — Cadastrar usuário](https://reservas-c14.atlassian.net/browse/SCRUM-10) | RF01–RF02 | In Review; funcionalidade existente, validação parcial | [API](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/commit/b760cab), [testes do serviço](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/commit/102fc18), [teste do controller](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/commit/695b328), [UsuarioServiceTest](backend/src/test/java/com/reservas/sistemareservas/service/UsuarioServiceTest.java) e [UsuarioControllerTest](backend/src/test/java/com/reservas/sistemareservas/controller/UsuarioControllerTest.java) |
+| [US07 / SCRUM-11 — Deploy externo](https://reservas-c14.atlassian.net/browse/SCRUM-11) | RNF06, RNF09 | In Progress; TiDB Cloud validado, publicação no Render e pipeline pendentes | [PR #7](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/7), [Dockerfile](Dockerfile), [Jenkinsfile](Jenkinsfile), [script de deploy](scripts/deploy-render.ps1), [testes do script](scripts/Test-DeployRender.ps1) e [teste de persistência externa](scripts/Test-DeployExterno.ps1) |
 
 Na US01, faltam testes do início no passado, da consulta real de conflitos no banco e dos códigos HTTP. Na US02, faltam testes da segunda tentativa de cancelamento e dos códigos HTTP. Na US06, faltam testes dos códigos HTTP 201 e 409, dos casos de 400 com nome vazio, senha curta e tipo ausente e da ausência da senha na resposta. Os testes de intervalos e os mocks de repositório não comprovam o comportamento da consulta SQL. A suíte foi executada em 31/10/2026 com JDK 21: 36 testes, todos passando. A API não foi testada em execução com o banco.
 
@@ -198,6 +283,8 @@ As tarefas de acompanhamento são [documentação / SCRUM-1](https://reservas-c1
 Foram usados Claude Opus 5.5, na sessão anterior, e Codex, na organização da E5, para leitura do repositório, rascunho de requisitos e documentação, apoio ao Jenkinsfile e cadastro das histórias no Jira. Os requisitos pendentes foram separados do comportamento já implementado, e as histórias em revisão registram as lacunas dos testes.
 
 A IA foi usada como apoio à redação e à execução de tarefas; a revisão e a defesa das decisões cabem aos integrantes. Antes da entrega final, cada integrante deve complementar este registro com seu uso de IA, as sugestões descartadas e as atividades realizadas sem IA.
+
+No deploy externo, Codex apoiou Dockerfile, configuracao por variaveis, script do Jenkins, testes e documentacao.
 
 ## Equipe
 
