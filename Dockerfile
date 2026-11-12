@@ -12,8 +12,7 @@ FROM eclipse-temurin:21-jre-jammy
 RUN groupadd --system app && useradd --system --gid app --home-dir /app app
 WORKDIR /app
 COPY --from=build /build/target/sistema-reservas-*.jar app.jar
-COPY scripts/docker-entrypoint.sh docker-entrypoint.sh
 ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=60.0"
 USER app
 EXPOSE 8080
-ENTRYPOINT ["sh", "/app/docker-entrypoint.sh"]
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

@@ -3,6 +3,7 @@ services:
     name: sistema-reservas-c14
     runtime: docker
     plan: free
+    region: virginia
     repo: https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14
     branch: main
     dockerfilePath: ./Dockerfile
