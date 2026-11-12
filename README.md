@@ -8,7 +8,7 @@ Projeto da disciplina C14 – Engenharia de Software (Inatel, 2026/2). O projeto
 
 - Java 21, Spring Boot 4, Maven (wrapper incluso)
 - MySQL 8 no ambiente local, TiDB Cloud Starter no deploy e Flyway (migrations)
-- Spring Data JPA, Bean Validation, Lombok
+- Spring Data JPA, Bean Validation, Lombok, Spring Security Crypto (BCrypt)
 - JUnit 5, Mockito, JaCoCo
 - Spring Boot Actuator (saúde e commit publicado)
 - Jenkins (CI/CD)
@@ -44,6 +44,10 @@ cd backend
 ```
 
 A API sobe em `http://localhost:8080`.
+
+Novos cadastros armazenam a senha com BCrypt, com custo 10. A senha deve ter pelo menos 6 caracteres e no máximo 72 bytes em UTF-8; acima desse limite, o cadastro retorna HTTP 422. As respostas de cadastro, consulta e listagem não incluem senha ou hash.
+
+A aplicação não converte registros antigos automaticamente. O único usuário legado do TiDB foi convertido administrativamente em 12/11/2026, com verificação pelo encoder do projeto e preservação de seus vínculos.
 
 ## Testes
 
@@ -94,7 +98,7 @@ Erros seguem o formato `{"status": 422, "mensagem": "...", "detalhes": []}`.
 
 | ID | Requisito | Status |
 |---|---|---|
-| RF01 | Cadastrar usuário com nome, e-mail, senha (mínimo 6 caracteres) e tipo (aluno, professor ou funcionário). | Implementado |
+| RF01 | Cadastrar usuário com nome, e-mail, senha (mínimo 6 caracteres e máximo 72 bytes em UTF-8) e tipo (aluno, professor ou funcionário). | Implementado |
 | RF02 | Impedir o cadastro de dois usuários com o mesmo e-mail. | Implementado |
 | RF03 | Listar usuários e buscar usuário por id, sem expor a senha. | Implementado |
 | RF04 | Cadastrar recursos de três tipos: sala de estudo (capacidade, projetor), quadra (modalidade, coberta) e equipamento de laboratório (laboratório, número de patrimônio). | Implementado |
@@ -124,7 +128,7 @@ Erros seguem o formato `{"status": 422, "mensagem": "...", "detalhes": []}`.
 | RNF05 | Sinalizar o build como instável quando a cobertura de linhas ficar abaixo de 40%. | Quality gate no Jenkins | Configurado; percentual atual depende do relatório do build |
 | RNF06 | Automatizar build, testes, publicação de cobertura e deploy pelo Jenkins. | `Jenkinsfile` e `scripts/deploy-render.ps1` | Deploy externo preparado; configuração dos serviços e validação no Jenkins pendentes |
 | RNF07 | Credenciais do banco configuráveis por variáveis de ambiente (`DB_USERNAME`, `DB_PASSWORD`). | `application.properties` | Atendido |
-| RNF08 | Senhas armazenadas com hash (BCrypt), nunca em texto puro. | — | Pendente |
+| RNF08 | Senhas armazenadas com hash (BCrypt), nunca em texto puro. | `SenhaConfig`, `UsuarioService` e testes de usuário | Restauração na branch; revisão e Jenkins pendentes. Usuário legado do TiDB convertido em 12/11/2026. |
 | RNF09 | Disponibilizar a API por HTTPS fora da máquina do Jenkins, com banco persistente compatível com MySQL. | Docker, Render, TiDB e health check | Validado localmente; publicação externa pendente |
 
 ## CI/CD
@@ -140,7 +144,7 @@ O Jenkins continua usando um agente Windows com JDK 21. As credenciais `render-d
 
 ## Deploy externo
 
-O ambiente usa a API no **Render Free** e banco **TiDB Cloud Starter, MySQL Compatible**, ambos em Virginia (`us-east-1` no TiDB). A publicação externa ainda está pendente. O PR #6 (BCrypt) deve ser revisado e integrado antes da publicação para uso.
+O ambiente usa a API no **Render Free** e banco **TiDB Cloud Starter, MySQL Compatible**, ambos em Virginia (`us-east-1` no TiDB). A publicação externa ainda está pendente. A restauração do BCrypt nesta branch precisa ser revisada e integrada antes da publicação para uso.
 
 ### Testar com Docker localmente
 
@@ -250,12 +254,14 @@ Situação em 31/10/2026. O Jira concentra os critérios de aceite e o status at
 | [US01 / SCRUM-5 — Reservar recurso](https://reservas-c14.atlassian.net/browse/SCRUM-5) | RF08–RF10 | In Review; funcionalidade existente, validação parcial | [PR #1](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/1), [PR #2](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/2), [API](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/commit/b760cab), [ReservaServiceTest](backend/src/test/java/com/reservas/sistemareservas/service/ReservaServiceTest.java), [ValidadorHorarioReservaTest](backend/src/test/java/com/reservas/sistemareservas/service/ValidadorHorarioReservaTest.java) e [testes de limites](backend/src/test/java/com/reservas/sistemareservas/service/ValidadorHorarioReservaLimitesTest.java) |
 | [US02 / SCRUM-6 — Cancelar reserva](https://reservas-c14.atlassian.net/browse/SCRUM-6) | RF07, RF12–RF13 | In Review; funcionalidade existente, validação parcial | [API](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/commit/b760cab), [testes do serviço](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/commit/102fc18), [PR #2](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/2), [ReservaServiceTest](backend/src/test/java/com/reservas/sistemareservas/service/ReservaServiceTest.java) e [RegraCancelamentoServiceTest](backend/src/test/java/com/reservas/sistemareservas/service/RegraCancelamentoServiceTest.java) |
 | [US03 / SCRUM-7 — Desativar recurso](https://reservas-c14.atlassian.net/browse/SCRUM-7) | RF16 | To Do; implementação pendente | PR e testes pendentes |
-| [US04 / SCRUM-8 — Armazenar senha com hash](https://reservas-c14.atlassian.net/browse/SCRUM-8) | RNF08 | To Do; implementação pendente | PR e testes pendentes |
+| [US04 / SCRUM-8 — Armazenar senha com hash](https://reservas-c14.atlassian.net/browse/SCRUM-8) | RNF08 | In Review; restauração do BCrypt sobre a base com deploy externo | [SenhaConfig](backend/src/main/java/com/reservas/sistemareservas/config/SenhaConfig.java), [UsuarioService](backend/src/main/java/com/reservas/sistemareservas/service/UsuarioService.java), [UsuarioServiceTest](backend/src/test/java/com/reservas/sistemareservas/service/UsuarioServiceTest.java) e [UsuarioControllerTest](backend/src/test/java/com/reservas/sistemareservas/controller/UsuarioControllerTest.java) |
 | [US05 / SCRUM-9 — Impedir cancelamento após o início](https://reservas-c14.atlassian.net/browse/SCRUM-9) | RF17 | To Do; implementação pendente | PR e testes pendentes |
 | [US06 / SCRUM-10 — Cadastrar usuário](https://reservas-c14.atlassian.net/browse/SCRUM-10) | RF01–RF02 | In Review; funcionalidade existente, validação parcial | [API](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/commit/b760cab), [testes do serviço](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/commit/102fc18), [teste do controller](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/commit/695b328), [UsuarioServiceTest](backend/src/test/java/com/reservas/sistemareservas/service/UsuarioServiceTest.java) e [UsuarioControllerTest](backend/src/test/java/com/reservas/sistemareservas/controller/UsuarioControllerTest.java) |
 | [US07 / SCRUM-11 — Deploy externo](https://reservas-c14.atlassian.net/browse/SCRUM-11) | RNF06, RNF09 | In Progress; TiDB Cloud validado, publicação no Render e pipeline pendentes | [PR #7](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/7), [Dockerfile](Dockerfile), [Jenkinsfile](Jenkinsfile), [script de deploy](scripts/deploy-render.ps1), [testes do script](scripts/Test-DeployRender.ps1) e [teste de persistência externa](scripts/Test-DeployExterno.ps1) |
 
-Na US01, faltam testes do início no passado, da consulta real de conflitos no banco e dos códigos HTTP. Na US02, faltam testes da segunda tentativa de cancelamento e dos códigos HTTP. Na US06, faltam testes dos códigos HTTP 201 e 409, dos casos de 400 com nome vazio, senha curta e tipo ausente e da ausência da senha na resposta. Os testes de intervalos e os mocks de repositório não comprovam o comportamento da consulta SQL. A suíte foi executada em 31/10/2026 com JDK 21: 36 testes, todos passando. A API não foi testada em execução com o banco.
+Na US01 e na US02, os testes adicionais de início no passado e segunda tentativa de cancelamento estão no PR #8, ainda em revisão. A execução local com TiDB real já comprovou o conflito HTTP 409 e os fluxos de reserva. Os mocks continuam sendo testes isolados e não executam a consulta SQL.
+
+Na US06, os testes do controller cobrem criação com HTTP 201, consultas sem senha ou hash, e-mail inválido com HTTP 400, limite de senha com HTTP 422 e usuário inexistente com HTTP 404. Os casos unitários de HTTP 409, nome vazio, senha curta e tipo ausente ainda não estão nessa classe. Em 12/11/2026, a restauração do BCrypt com a configuração de deploy passou em 44 testes Java e seis testes PowerShell; os builds do Jenkins continuam pendentes.
 
 Cada integrante cadastrou ao menos uma história: as US01 a US05 estão na conta do Vinícius, e a US06, na do Raphael. A E5 ainda depende da revisão e integração deste README, da conferência do acesso do monitor ao Jira e do envio dos links pelo líder.
 
