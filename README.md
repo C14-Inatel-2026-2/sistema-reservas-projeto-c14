@@ -76,13 +76,14 @@ O relatório de cobertura é gerado em `backend/target/site/jacoco/index.html`.
 | POST | `/recursos/equipamentos` | Cadastra equipamento de laboratório |
 | GET | `/recursos` | Lista recursos |
 | GET | `/recursos/{id}` | Busca recurso |
+| PATCH | `/recursos/{id}/desativar` | Desativa o recurso (ele deixa de aceitar novas reservas) |
 | PUT | `/recursos/{id}/regra-cancelamento` | Define a regra de cancelamento do recurso |
 | GET | `/recursos/{id}/regra-cancelamento` | Consulta a regra de cancelamento |
 | POST | `/reservas` | Cria reserva |
 | GET | `/reservas?usuarioId=&recursoId=` | Lista reservas (filtros opcionais) |
 | GET | `/reservas/{id}` | Busca reserva |
 | PATCH | `/reservas/{id}/confirmar` | Confirma reserva pendente |
-| PATCH | `/reservas/{id}/cancelar` | Cancela reserva (corpo opcional: `{"motivo": "..."}`) |
+| PATCH | `/reservas/{id}/cancelar` | Cancela reserva ainda não iniciada (422 se já começou; corpo opcional: `{"motivo": "..."}`) |
 
 Exemplo de criação de reserva:
 

@@ -6,6 +6,7 @@ import com.reservas.sistemareservas.dto.RecursoResponse;
 import com.reservas.sistemareservas.dto.SalaEstudoRequest;
 import com.reservas.sistemareservas.entity.EquipamentoLaboratorio;
 import com.reservas.sistemareservas.entity.Quadra;
+import com.reservas.sistemareservas.entity.Recurso;
 import com.reservas.sistemareservas.entity.SalaEstudo;
 import com.reservas.sistemareservas.exception.ConflitoException;
 import com.reservas.sistemareservas.exception.EntidadeNaoEncontradaException;
@@ -65,6 +66,14 @@ public class RecursoService {
                 .numeroPatrimonio(request.numeroPatrimonio())
                 .build();
         return RecursoResponse.de(equipamentoRepository.save(equipamento));
+    }
+
+    @Transactional
+    public RecursoResponse desativar(Long id) {
+        Recurso recurso = recursoRepository.findById(id)
+                .orElseThrow(() -> new EntidadeNaoEncontradaException("Recurso", id));
+        recurso.setAtivo(false);
+        return RecursoResponse.de(recurso);
     }
 
     @Transactional(readOnly = true)
