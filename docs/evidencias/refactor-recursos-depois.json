@@ -1,0 +1,23 @@
+{
+  "data": "2026-11-13",
+  "etapa": "depois dos refactorings de recursos e testes",
+  "ambiente": "Jenkins local em Windows, JDK 21; testes do deploy em Windows PowerShell",
+  "branch": "refactor/recursos-e-testes",
+  "commit": "9efac7e0e563875282e12fe9449eadb59047ff97",
+  "comando": "pipeline do Jenkinsfile (Build, Testes, Cobertura e Deploy pulado fora da main)",
+  "java": {
+    "tests": 48,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "deploy": {
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "coberturaLinhas": 65.22,
+  "jenkins": "sucesso; build 2 do job sistema-reservas-validacao",
+  "observacao": "Mesmos testes e mesma infraestrutura; mudam apenas a extracao dos mapeamentos de RecursoResponse e a extracao dos helpers de preparacao em ReservaServiceTest. A cobertura sobe porque os metodos novos sao executados pelos mesmos testes."
+}
