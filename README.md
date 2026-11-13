@@ -4,6 +4,11 @@ API REST para reserva de recursos de uma instituição de ensino: salas de estud
 
 Projeto da disciplina C14 – Engenharia de Software (Inatel, 2026/2). O projeto tem apenas backend.
 
+**API pública:** [https://sistema-reservas-c14.onrender.com](https://sistema-reservas-c14.onrender.com).
+Para conferir no navegador: [saúde da API](https://sistema-reservas-c14.onrender.com/actuator/health), [versão publicada](https://sistema-reservas-c14.onrender.com/actuator/info) e [recursos cadastrados](https://sistema-reservas-c14.onrender.com/recursos).
+
+O Render Free pode hibernar após 15 minutos sem tráfego. A primeira chamada após esse período pode levar cerca de um minuto.
+
 ## Tecnologias
 
 - Java 21, Spring Boot 4, Maven (wrapper incluso)
@@ -87,12 +92,13 @@ POST /reservas
 {
   "usuarioId": 1,
   "recursoId": 2,
-  "dataHoraInicio": "2026-11-05T14:00:00",
-  "dataHoraFim": "2026-11-05T16:00:00"
+  "dataHoraInicio": "2026-12-15T14:00:00",
+  "dataHoraFim": "2026-12-15T16:00:00"
 }
 ```
 
 Erros seguem o formato `{"status": 422, "mensagem": "...", "detalhes": []}`.
+Use IDs existentes e um período futuro livre ao repetir o exemplo.
 
 ## Requisitos funcionais
 
@@ -126,10 +132,10 @@ Erros seguem o formato `{"status": 422, "mensagem": "...", "detalhes": []}`.
 | RNF03 | API REST com JSON e códigos HTTP padronizados: 400 (validação), 404 (não encontrado), 409 (conflito), 422 (regra de negócio). | `GlobalExceptionHandler` | Atendido |
 | RNF04 | Erros tratados pelo `GlobalExceptionHandler` no formato `{status, mensagem, detalhes}`. | `ErroResponse` | Atendido |
 | RNF05 | Sinalizar o build como instável quando a cobertura de linhas ficar abaixo de 40%. | Quality gate no Jenkins | Configurado; percentual atual depende do relatório do build |
-| RNF06 | Automatizar build, testes, publicação de cobertura e deploy pelo Jenkins. | `Jenkinsfile` e `scripts/deploy-render.ps1` | Deploy externo preparado; configuração dos serviços e validação no Jenkins pendentes |
+| RNF06 | Automatizar build, testes, publicação de cobertura e deploy pelo Jenkins. | `Jenkinsfile` e `scripts/deploy-render.ps1` | Serviço publicado e hook validado localmente; credenciais e execução no Jenkins pendentes |
 | RNF07 | Credenciais do banco configuráveis por variáveis de ambiente (`DB_USERNAME`, `DB_PASSWORD`). | `application.properties` | Atendido |
-| RNF08 | Senhas armazenadas com hash (BCrypt), nunca em texto puro. | `SenhaConfig`, `UsuarioService` e testes de usuário | Restauração na branch; revisão e Jenkins pendentes. Usuário legado do TiDB convertido em 12/11/2026. |
-| RNF09 | Disponibilizar a API por HTTPS fora da máquina do Jenkins, com banco persistente compatível com MySQL. | Docker, Render, TiDB e health check | Validado localmente; publicação externa pendente |
+| RNF08 | Senhas armazenadas com hash (BCrypt), nunca em texto puro. | `SenhaConfig`, `UsuarioService` e testes de usuário | Integrado pelo PR #11. Usuário legado do TiDB convertido em 12/11/2026. |
+| RNF09 | Disponibilizar a API por HTTPS fora da máquina do Jenkins, com banco persistente compatível com MySQL. | Docker, Render, TiDB e health check | API pública e persistência após novo deploy verificadas em 13/11/2026 |
 
 ## CI/CD
 
@@ -144,7 +150,7 @@ O Jenkins continua usando um agente Windows com JDK 21. As credenciais `render-d
 
 ## Deploy externo
 
-O ambiente usa a API no **Render Free** e banco **TiDB Cloud Starter, MySQL Compatible**, ambos em Virginia (`us-east-1` no TiDB). A publicação externa ainda está pendente. A restauração do BCrypt nesta branch precisa ser revisada e integrada antes da publicação para uso.
+A API está publicada no **Render Free**, com banco **TiDB Cloud Starter, MySQL Compatible**, ambos em Virginia (`us-east-1` no TiDB). O BCrypt está integrado pelo PR #11. A execução completa pelo Jenkins ainda depende do cadastro das credenciais e dos builds.
 
 ### Testar com Docker localmente
 
@@ -165,6 +171,8 @@ Crie uma instância **Starter**, modo **MySQL Compatible**, AWS **N. Virginia (`
 No SQL Editor da instância, execute [scripts/preparar-tidb.sql](scripts/preparar-tidb.sql) **antes da primeira inicialização da API**. Ele habilita `tidb_enable_check_constraint`, cria `sistema_reservas` com `utf8mb4_0900_ai_ci` e exibe os valores para conferência. O primeiro resultado deve ser `1`, e a collation deve ser `utf8mb4_0900_ai_ci`. As tabelas continuam sendo criadas pela migration V1 original do Flyway.
 
 Em **Connect**, obtenha host, porta, usuário completo (incluindo o prefixo da instância) e senha. Restrinja o firewall aos endereços de saída do serviço no Render; permita o IP local apenas durante a validação. As credenciais ficam nas variáveis de ambiente do serviço.
+
+No ambiente publicado, a lista de acesso do TiDB contém apenas os intervalos `74.220.49.0/24` e `74.220.57.0/24`, informados pelo Render para o serviço em Virginia em 13/11/2026. A regra de acesso de qualquer IP foi removida. Consulte **Connect > Outbound IP Addresses** do serviço ao revisar essa configuração.
 
 ### API no Render
 
@@ -194,7 +202,7 @@ Cadastre duas credenciais do tipo **Secret text**, com estes IDs:
 | ID | Conteúdo |
 |---|---|
 | `render-deploy-hook` | Deploy Hook obtido nas configurações do serviço no Render |
-| `render-service-url` | URL HTTPS pública da API, sem barra final |
+| `render-service-url` | `https://sistema-reservas-c14.onrender.com` |
 
 O script envia o SHA da pipeline no parâmetro `ref` do hook e espera por até 15 minutos pela aplicação saudável nessa versão. O hook não é escrito nos logs. Um build instável por cobertura abaixo de 40% não executa o deploy. [Deploy hooks do Render](https://render.com/docs/deploy-hooks).
 
@@ -212,15 +220,17 @@ Em 12/11/2026: a aplicação executou com TiDB 8.5.2 local e limite de 512 MB. A
 
 Na mesma data, a imagem Docker foi conectada ao TiDB Cloud Starter 8.5.3 em Virginia, com `sslMode=VERIFY_IDENTITY` e as autoridades certificadoras padrão do Java 21. A migration V1 original criou as tabelas; os três `CHECK` e as chaves estrangeiras rejeitaram inserções inválidas. Cadastro, e-mail único, reserva, conflito de horário e confirmação passaram. Após substituir o contêiner da API, o usuário e a reserva confirmada continuaram salvos no banco. Também passaram os 36 testes Java e os seis testes do script de deploy, estes no PowerShell 5.1 e 7. A URL pública no Render e a execução da pipeline no Jenkins ainda estão pendentes.
 
-Para testar o ambiente publicado e guardar os IDs de registros fictícios:
+Em 13/11/2026, o Render publicou a `main` no commit `1dbd0f707ee3c3112d2a43f5bb04d3474732f5df`. A URL HTTPS respondeu com saúde `UP` e o SHA esperado. Passaram 12 grupos de verificações pela API, incluindo os três tipos de recurso, validações de cadastro, unicidade, conflito de horário, períodos adjacentes, confirmação e regras de cancelamento. Após um novo deploy pelo hook, o usuário e a reserva confirmada permaneceram salvos. Essa execução partiu da máquina local; os builds do Jenkins continuam pendentes. [Evidência da publicação](docs/evidencias/deploy-publico.json).
+
+Para repetir a verificação e guardar os IDs de registros fictícios:
 
 ```powershell
-.\scripts\Test-DeployExterno.ps1 -BaseUrl https://SERVICO.onrender.com -Commit SHA_COMPLETO -Fase Criar
+.\scripts\Test-CriteriosApi.ps1 -BaseUrl https://sistema-reservas-c14.onrender.com -Commit SHA_COMPLETO -StatePath backend/target/aceite-api.json
 # Depois de um novo deploy, confira os mesmos registros:
-.\scripts\Test-DeployExterno.ps1 -BaseUrl https://SERVICO.onrender.com -Commit SHA_PUBLICADO -Fase Conferir
+.\scripts\Test-DeployExterno.ps1 -BaseUrl https://sistema-reservas-c14.onrender.com -Commit SHA_PUBLICADO -Fase Conferir -StatePath backend/target/aceite-api.json
 ```
 
-O estado do teste fica em `backend/target/deploy-smoke.json`, fora do Git. Só marque o deploy como concluído depois de validar a versão publicada, o fluxo de reserva e a persistência após redeploy.
+O estado do teste e o resumo `aceite-api.resultado.json` ficam em `backend/target`, fora do Git. O script usa outras reservas para cancelamento, preservando a reserva confirmada para a prova de persistência. A conclusão da CI/CD exige também a execução e as evidências do Jenkins.
 
 ## Gestão do projeto
 
@@ -257,7 +267,7 @@ Situação em 31/10/2026. O Jira concentra os critérios de aceite e o status at
 | [US04 / SCRUM-8 — Armazenar senha com hash](https://reservas-c14.atlassian.net/browse/SCRUM-8) | RNF08 | In Review; restauração do BCrypt sobre a base com deploy externo | [SenhaConfig](backend/src/main/java/com/reservas/sistemareservas/config/SenhaConfig.java), [UsuarioService](backend/src/main/java/com/reservas/sistemareservas/service/UsuarioService.java), [UsuarioServiceTest](backend/src/test/java/com/reservas/sistemareservas/service/UsuarioServiceTest.java) e [UsuarioControllerTest](backend/src/test/java/com/reservas/sistemareservas/controller/UsuarioControllerTest.java) |
 | [US05 / SCRUM-9 — Impedir cancelamento após o início](https://reservas-c14.atlassian.net/browse/SCRUM-9) | RF17 | To Do; implementação pendente | PR e testes pendentes |
 | [US06 / SCRUM-10 — Cadastrar usuário](https://reservas-c14.atlassian.net/browse/SCRUM-10) | RF01–RF02 | In Review; funcionalidade existente, validação parcial | [API](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/commit/b760cab), [testes do serviço](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/commit/102fc18), [teste do controller](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/commit/695b328), [UsuarioServiceTest](backend/src/test/java/com/reservas/sistemareservas/service/UsuarioServiceTest.java) e [UsuarioControllerTest](backend/src/test/java/com/reservas/sistemareservas/controller/UsuarioControllerTest.java) |
-| [US07 / SCRUM-11 — Deploy externo](https://reservas-c14.atlassian.net/browse/SCRUM-11) | RNF06, RNF09 | In Progress; TiDB Cloud validado, publicação no Render e pipeline pendentes | [PR #7](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/7), [Dockerfile](Dockerfile), [Jenkinsfile](Jenkinsfile), [script de deploy](scripts/deploy-render.ps1), [testes do script](scripts/Test-DeployRender.ps1) e [teste de persistência externa](scripts/Test-DeployExterno.ps1) |
+| [US07 / SCRUM-11 — Deploy externo](https://reservas-c14.atlassian.net/browse/SCRUM-11) | RNF06, RNF09 | In Progress; API pública e persistência verificadas, Jenkins pendente | [PR #7](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/7), [Dockerfile](Dockerfile), [Jenkinsfile](Jenkinsfile), [script de deploy](scripts/deploy-render.ps1), [testes do script](scripts/Test-DeployRender.ps1), [verificação HTTP](scripts/Test-CriteriosApi.ps1) e [evidência](docs/evidencias/deploy-publico.json) |
 
 Na US01 e na US02, os testes adicionais de início no passado e segunda tentativa de cancelamento estão no PR #8, ainda em revisão. A execução local com TiDB real já comprovou o conflito HTTP 409 e os fluxos de reserva. Os mocks continuam sendo testes isolados e não executam a consulta SQL.
 
