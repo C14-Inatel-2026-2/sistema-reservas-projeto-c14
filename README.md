@@ -240,16 +240,16 @@ Tarefas: [reservas / SCRUM-12](https://reservas-c14.atlassian.net/browse/SCRUM-1
 
 | Autor | Smell | Refactoring e motivo | Evidência | Situação |
 |---|---|---|---|---|
-| Vinícius | `criar` mistura validação, montagem e persistência. | Extrair `montarReserva`, separando a construção da entidade das verificações. | [PR #8](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/8), commit `476febb` | Aplicado na branch; revisão e Jenkins pendentes |
-| Vinícius | `cancelar` concentra regra, cálculo de multa e mudança de estado. | Extrair `calcularPercentualMulta`, preservando o mesmo instante e a comparação de antecedência. | [PR #8](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/8), commit `1b6f428` | Aplicado na branch; revisão e Jenkins pendentes |
+| Vinícius | `criar` mistura validação, montagem e persistência. | Extrair `montarReserva`, separando a construção da entidade das verificações. | [PR #8](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/8), commit `476febb` | Integrado pelo PR #8; Jenkins verde antes e depois |
+| Vinícius | `cancelar` concentra regra, cálculo de multa e mudança de estado. | Extrair `calcularPercentualMulta`, preservando o mesmo instante e a comparação de antecedência. | [PR #8](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/8), commit `1b6f428` | Integrado pelo PR #8; Jenkins verde antes e depois |
 | Raphael | Mapeamento extenso dos tipos de recurso: `RecursoResponse.de` concentra o mapeamento de todos os tipos em um só método (método longo). | Extrair `deSala`, `deQuadra`, `deEquipamento` e `deRecursoBase`. O motivo é deixar `de` apenas escolhendo o tipo e isolar cada mapeamento, o que facilita ler e alterar um tipo sem mexer nos outros; campos e proxies foram preservados. | [PR #13](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/13), commit `3828d14` | Aplicado; Jenkins verde antes e depois; revisão pendente |
 | Raphael | Preparação repetida nos testes de cancelamento: os mesmos mocks de reserva e de regra são configurados em cada teste (código duplicado). | Extrair os helpers `dadoReservaExistente` e `dadoRegraDoRecurso` em `ReservaServiceTest`. O motivo é reduzir a duplicação e deixar cada teste mostrando só o que o diferencia; as verificações não mudaram, e foram dois helpers porque um teste não pode configurar o repositório de regras. | [PR #13](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/13), commit `b4beaac` | Aplicado; Jenkins verde antes e depois; revisão pendente |
 
 Em 12/11/2026, `mvnw.cmd -B -ntp clean verify` com JDK 21 passou antes e depois dos dois refactorings de Vinícius: 40 testes, sem falhas. A cobertura de linhas foi de 61,93% para 62,50%. Os quatro testes novos e as verificações adicionais foram registrados antes das extrações, no commit `4ec64e1`; não contam como refactorings.
 
-Resumos da validação local: [antes](docs/evidencias/refactor-reservas-antes.json) e [depois](docs/evidencias/refactor-reservas-depois.json). Os relatórios completos JUnit e JaCoCo foram preservados localmente. Os builds do Jenkins antes e depois ainda precisam ser executados e vinculados.
+Resumos da validação local: [antes](docs/evidencias/refactor-reservas-antes.json) e [depois](docs/evidencias/refactor-reservas-depois.json). Os relatórios completos JUnit e JaCoCo foram preservados localmente. Os builds do Jenkins antes e depois foram executados em 13/11/2026 e estão resumidos mais abaixo.
 
-Esta branch combina o deploy do PR #7 e a restauracao do BCrypt do PR #11. Integrar o #11 antes do #8. Os builds do Jenkins antes/depois continuam pendentes.
+O PR #8 combinou o deploy do PR #7 e a restauração do BCrypt do PR #11, que foi integrado antes dele. Os builds do Jenkins antes e depois estão registrados mais abaixo.
 
 Na base integrada, as duas referências passaram em 48 testes Java e seis testes PowerShell. A cobertura de linhas foi de 64,18% antes para 64,71% depois. Os testes e a infraestrutura são iguais nas duas referências; no código de produção mudam apenas as duas extrações em `ReservaService`.
 
