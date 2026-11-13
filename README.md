@@ -222,6 +222,8 @@ Na mesma data, a imagem Docker foi conectada ao TiDB Cloud Starter 8.5.3 em Virg
 
 Em 13/11/2026, o Render publicou a `main` no commit `1dbd0f707ee3c3112d2a43f5bb04d3474732f5df`. A URL HTTPS respondeu com saúde `UP` e o SHA esperado. Passaram 12 grupos de verificações pela API, incluindo os três tipos de recurso, validações de cadastro, unicidade, conflito de horário, períodos adjacentes, confirmação e regras de cancelamento. Após um novo deploy pelo hook, o usuário e a reserva confirmada permaneceram salvos. Essa execução partiu da máquina local; os builds do Jenkins continuam pendentes. [Evidência da publicação](docs/evidencias/deploy-publico.json).
 
+Na revisão dos critérios do Jira, passaram também os 12 critérios das histórias US01, US02 e US06 na mesma versão pública: sobreposição parcial das 14h–16h com 15h–17h recusada, período adjacente aceito, períodos inválidos rejeitados, multa configurável de 20% aplicada conforme a antecedência, cancelamento bloqueado sem alterar o status e cadastro dos três tipos de usuário sem senha/hash nas respostas. [Resultados por critério](docs/evidencias/criterios-publicos.json). A revisão final e os builds do Jenkins continuam pendentes.
+
 Para repetir a verificação e guardar os IDs de registros fictícios:
 
 ```powershell

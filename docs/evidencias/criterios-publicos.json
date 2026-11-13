@@ -1,0 +1,133 @@
+{
+  "verificadoEm": "2026-11-13",
+  "executadoEmUtc": "2026-11-13T13:34:28.984047+00:00",
+  "url": "https://sistema-reservas-c14.onrender.com",
+  "commitPublicado": "1dbd0f707ee3c3112d2a43f5bb04d3474732f5df",
+  "resultado": "PASSOU",
+  "historias": 3,
+  "criterios": 12,
+  "verificacoes": [
+    {
+      "historia": "US06",
+      "criterio": 1,
+      "verificacao": "Cadastro dos tres tipos de usuario retorna HTTP 201 com identificador e tipo corretos",
+      "resultado": "PASSOU",
+      "http": [
+        201,
+        201,
+        201
+      ]
+    },
+    {
+      "historia": "US06",
+      "criterio": 2,
+      "verificacao": "E-mail duplicado retorna HTTP 409 e a listagem contem apenas um registro com esse e-mail",
+      "resultado": "PASSOU",
+      "http": [
+        409,
+        200
+      ]
+    },
+    {
+      "historia": "US06",
+      "criterio": 3,
+      "verificacao": "Nome vazio, e-mail invalido, senha curta e tipo ausente retornam HTTP 400",
+      "resultado": "PASSOU",
+      "http": [
+        400,
+        400,
+        400,
+        400
+      ]
+    },
+    {
+      "historia": "US06",
+      "criterio": 4,
+      "verificacao": "As tres respostas de cadastro nao contem senha nem hash",
+      "resultado": "PASSOU",
+      "http": [
+        201,
+        201,
+        201
+      ]
+    },
+    {
+      "historia": "US01",
+      "criterio": 1,
+      "verificacao": "Recurso ativo e livre em periodo futuro cria reserva PENDENTE",
+      "resultado": "PASSOU",
+      "http": [
+        201
+      ]
+    },
+    {
+      "historia": "US01",
+      "criterio": 2,
+      "verificacao": "Reserva das 14h as 16h bloqueia sobreposicao parcial das 15h as 17h",
+      "resultado": "PASSOU",
+      "http": [
+        409
+      ]
+    },
+    {
+      "historia": "US01",
+      "criterio": 3,
+      "verificacao": "Reserva das 16h as 18h e aceita depois da reserva das 14h as 16h",
+      "resultado": "PASSOU",
+      "http": [
+        201
+      ]
+    },
+    {
+      "historia": "US01",
+      "criterio": 4,
+      "verificacao": "Fim igual, fim anterior e inicio passado retornam HTTP 422",
+      "resultado": "PASSOU",
+      "http": [
+        422,
+        422,
+        422
+      ]
+    },
+    {
+      "historia": "US02",
+      "criterio": 1,
+      "verificacao": "Regra de 24h e 20%: cancelamento com aproximadamente 48h de antecedencia aplica 0%",
+      "resultado": "PASSOU",
+      "http": [
+        200
+      ]
+    },
+    {
+      "historia": "US02",
+      "criterio": 2,
+      "verificacao": "Mesma regra: cancelamento com aproximadamente 2h de antecedencia aplica 20%",
+      "resultado": "PASSOU",
+      "http": [
+        200
+      ]
+    },
+    {
+      "historia": "US02",
+      "criterio": 3,
+      "verificacao": "Regra proibe cancelamento: HTTP 422 e status PENDENTE preservado",
+      "resultado": "PASSOU",
+      "http": [
+        422,
+        200
+      ]
+    },
+    {
+      "historia": "US02",
+      "criterio": 4,
+      "verificacao": "Segunda tentativa de cancelar a mesma reserva retorna HTTP 422",
+      "resultado": "PASSOU",
+      "http": [
+        422
+      ]
+    }
+  ],
+  "jenkins": "pendente; verificacoes HTTP executadas localmente",
+  "dados": "Registros ficticios isolados criados pela API; nenhuma alteracao em dados existentes",
+  "limite": "Repetir o aceite apos as integracoes e o deploy final"
+}
