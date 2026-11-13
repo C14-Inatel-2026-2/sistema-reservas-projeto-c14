@@ -1,0 +1,51 @@
+{
+  "verificadoEm": "2026-11-13",
+  "url": "https://sistema-reservas-c14.onrender.com",
+  "commitPublicado": "1dbd0f707ee3c3112d2a43f5bb04d3474732f5df",
+  "saude": "UP",
+  "api": {
+    "cliente": "Windows PowerShell 5.1",
+    "gruposDeVerificacoes": 12,
+    "resultado": "PASSOU",
+    "verificacoes": [
+      "cadastro sem senha exposta, e-mail unico, conflito de horario e confirmacao",
+      "cadastro invalido: nome retorna HTTP 400",
+      "cadastro invalido: email retorna HTTP 400",
+      "cadastro invalido: senha retorna HTTP 400",
+      "cadastro invalido: tipo retorna HTTP 400",
+      "senha com 74 bytes UTF-8 retorna HTTP 422",
+      "tres tipos de recurso preservam campos; patrimonio duplicado retorna HTTP 409",
+      "reserva adjacente ao fim da anterior aceita com HTTP 201",
+      "cancelamento sem regra aplica zero; segunda tentativa retorna HTTP 422",
+      "inicio no passado e periodo vazio retornam HTTP 422",
+      "regra bloqueia cancelamento sem alterar status; regra permitida aplica 25%",
+      "reserva confirmada preservada para conferir depois do redeploy"
+    ]
+  },
+  "persistencia": {
+    "aposNovoDeploy": "PASSOU",
+    "usuarioPreservado": true,
+    "reservaConfirmadaPreservada": true
+  },
+  "render": {
+    "plano": "Free",
+    "regiao": "Virginia",
+    "servico": "srv-dbr9aak9v7es73btsr90",
+    "deployInicial": "dep-dbr9ab49v7es73btss70",
+    "novoDeploy": "dep-dbr9hh8ae00c73f0r130",
+    "estadoNovoDeploy": "Live",
+    "autoDeploy": "Off"
+  },
+  "tidb": {
+    "plano": "Starter",
+    "regiao": "AWS us-east-1",
+    "tls": "VERIFY_IDENTITY",
+    "redesPermitidas": [
+      "74.220.49.0/24",
+      "74.220.57.0/24"
+    ],
+    "acessoDeQualquerIP": false
+  },
+  "acionamento": "Script deploy-render.ps1 executado localmente com o hook oficial do servico",
+  "jenkins": "pendente; este registro nao representa um build do Jenkins"
+}
