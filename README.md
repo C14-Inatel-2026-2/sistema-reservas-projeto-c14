@@ -4,6 +4,8 @@ API REST para reserva de recursos de uma instituição de ensino: salas de estud
 
 Projeto da disciplina C14 – Engenharia de Software (Inatel, 2026/2). O projeto tem apenas backend.
 
+**Escopo:** o sistema é uma API REST, sem interface gráfica. Ela é usada por chamadas HTTP (curl, Postman ou o navegador, para as consultas), e os endpoints e exemplos estão na seção [Endpoints](#endpoints). Autenticação de usuários (RF15) e edição ou exclusão de registros (RF18) ficaram fora desta entrega.
+
 **API pública:** [https://sistema-reservas-c14.onrender.com](https://sistema-reservas-c14.onrender.com).
 Para conferir no navegador: [saúde da API](https://sistema-reservas-c14.onrender.com/actuator/health), [versão publicada](https://sistema-reservas-c14.onrender.com/actuator/info) e [recursos cadastrados](https://sistema-reservas-c14.onrender.com/recursos).
 
@@ -17,6 +19,14 @@ O Render Free pode hibernar após 15 minutos sem tráfego. A primeira chamada ap
 - JUnit 5, Mockito, JaCoCo
 - Spring Boot Actuator (saúde e commit publicado)
 - Jenkins (CI/CD)
+
+### Gerenciamento de dependências e build reproduzível
+
+As dependências são gerenciadas com Maven (`backend/pom.xml`). O build é reproduzível porque:
+
+- o Maven Wrapper (`mvnw` e `mvnw.cmd`) está versionado e fixa o Maven 3.9.16, então todos usam a mesma versão sem instalá-lo;
+- o `pom.xml` fixa a versão do Spring Boot (parent 4.0.0), do Java (21) e dos plugins (JaCoCo 0.8.13); as demais dependências usam as versões gerenciadas pelo parent;
+- o Jenkins e o Dockerfile chamam sempre o wrapper (`mvnw -B -ntp ...`), sem passos manuais e sem depender de um Maven instalado na máquina.
 
 ## Estrutura
 
@@ -64,6 +74,8 @@ cd backend
 
 O relatório de cobertura é gerado em `backend/target/site/jacoco/index.html`.
 
+Situação em 13/11/2026: 55 testes Java (JUnit 5 e Mockito) e 6 testes do script de deploy em PowerShell, todos passando. A cobertura de linhas medida pelo JaCoCo é de 65,4% (140 de 214 linhas).
+
 ## Endpoints
 
 | Método | Rota | Descrição |
@@ -76,6 +88,8 @@ O relatório de cobertura é gerado em `backend/target/site/jacoco/index.html`.
 | POST | `/recursos/equipamentos` | Cadastra equipamento de laboratório |
 | GET | `/recursos` | Lista recursos |
 | GET | `/recursos/{id}` | Busca recurso |
+| PATCH | `/recursos/{id}/desativar` | Desativa o recurso (ele deixa de aceitar novas reservas) |
+| PATCH | `/recursos/{id}/ativar` | Reativa um recurso desativado (ele volta a aceitar reservas) |
 | PUT | `/recursos/{id}/regra-cancelamento` | Define a regra de cancelamento do recurso |
 | GET | `/recursos/{id}/regra-cancelamento` | Consulta a regra de cancelamento |
 | POST | `/reservas` | Cria reserva |
@@ -100,6 +114,32 @@ POST /reservas
 Erros seguem o formato `{"status": 422, "mensagem": "...", "detalhes": []}`.
 Use IDs existentes e um período futuro livre ao repetir o exemplo.
 
+Exemplo de uso com `curl`, do cadastro ao cancelamento (a API local sobe em `http://localhost:8080`; troque as datas por um período futuro):
+
+```bash
+# 1. cadastrar um usuário (retorna 201)
+curl -X POST http://localhost:8080/usuarios -H "Content-Type: application/json" \
+  -d '{"nome":"Ana","email":"ana@teste.com","senha":"123456","tipo":"ALUNO"}'
+
+# 2. cadastrar uma quadra (retorna 201)
+curl -X POST http://localhost:8080/recursos/quadras -H "Content-Type: application/json" \
+  -d '{"nome":"Quadra 1","localizacao":"Bloco A","modalidade":"Futsal","coberta":true}'
+
+# 3. definir a regra de cancelamento do recurso 1
+curl -X PUT http://localhost:8080/recursos/1/regra-cancelamento -H "Content-Type: application/json" \
+  -d '{"permiteCancelamento":true,"horasMinimasAntecedencia":24,"percentualMulta":30}'
+
+# 4. reservar a quadra (retorna 201; repetir o mesmo horário retorna 409)
+curl -X POST http://localhost:8080/reservas -H "Content-Type: application/json" \
+  -d '{"usuarioId":1,"recursoId":1,"dataHoraInicio":"2026-12-15T14:00:00","dataHoraFim":"2026-12-15T16:00:00"}'
+
+# 5. cancelar a reserva (retorna a multa aplicada; 422 se a reserva já começou)
+curl -X PATCH http://localhost:8080/reservas/1/cancelar
+
+# 6. desativar a quadra; novas reservas passam a retornar 422
+curl -X PATCH http://localhost:8080/recursos/1/desativar
+```
+
 ## Requisitos funcionais
 
 | ID | Requisito | Status |
@@ -119,8 +159,8 @@ Use IDs existentes e um período futuro livre ao repetir o exemplo.
 | RF13 | Aplicar o percentual de multa da regra quando o cancelamento ocorrer com antecedência menor que a mínima. | Implementado |
 | RF14 | Listar reservas, com filtro opcional por usuário e/ou recurso, e buscar reserva por id. | Implementado |
 | RF15 | Autenticar usuários e permitir que apenas o dono da reserva a cancele. | Pendente |
-| RF16 | Ativar e desativar recursos; recursos inativos não aceitam novas reservas. | Pendente |
-| RF17 | Impedir o cancelamento de reservas já iniciadas ou encerradas. | Pendente |
+| RF16 | Ativar e desativar recursos; recursos inativos não aceitam novas reservas. | Implementado |
+| RF17 | Impedir o cancelamento de reservas já iniciadas ou encerradas. | Implementado |
 | RF18 | Editar e excluir usuários, recursos e reservas. | Pendente |
 
 ## Requisitos não funcionais
@@ -131,7 +171,7 @@ Use IDs existentes e um período futuro livre ao repetir o exemplo.
 | RNF02 | Banco MySQL 8 ou TiDB compatível com MySQL, com esquema versionado por migrations Flyway. | `db/migration/` | Validado com MySQL local e TiDB Cloud via TLS |
 | RNF03 | API REST com JSON e códigos HTTP padronizados: 400 (validação), 404 (não encontrado), 409 (conflito), 422 (regra de negócio). | `GlobalExceptionHandler` | Atendido |
 | RNF04 | Erros tratados pelo `GlobalExceptionHandler` no formato `{status, mensagem, detalhes}`. | `ErroResponse` | Atendido |
-| RNF05 | Sinalizar o build como instável quando a cobertura de linhas ficar abaixo de 40%. | Quality gate no Jenkins | Configurado; percentual atual depende do relatório do build |
+| RNF05 | Sinalizar o build como instável quando a cobertura de linhas ficar abaixo de 40%. | Quality gate no Jenkins | Configurado; cobertura de linhas de 65,4% em 13/11/2026 |
 | RNF06 | Automatizar build, testes, publicação de cobertura e deploy pelo Jenkins. | `Jenkinsfile` e `scripts/deploy-render.ps1` | Serviço publicado e hook validado localmente; credenciais e execução no Jenkins pendentes |
 | RNF07 | Credenciais do banco configuráveis por variáveis de ambiente (`DB_USERNAME`, `DB_PASSWORD`). | `application.properties` | Atendido |
 | RNF08 | Senhas armazenadas com hash (BCrypt), nunca em texto puro. | `SenhaConfig`, `UsuarioService` e testes de usuário | Integrado pelo PR #11. Usuário legado do TiDB convertido em 12/11/2026. |
@@ -263,11 +303,13 @@ Na mesma data, o Jenkins executou a pipeline sobre as referências dos refactori
 
 [Quadro no Jira](https://reservas-c14.atlassian.net/jira/software/projects/SCRUM/boards/1) · [Backlog](https://reservas-c14.atlassian.net/jira/software/projects/SCRUM/boards/1/backlog)
 
-O quadro foi organizado em 30/10/2026 com Scrum adaptado à equipe de dois integrantes. A sprint atual, **Sprint E5**, vai de 30/10 a 13/11/2026. Seu objetivo é consolidar a documentação da E5, vincular código e testes e revisar os critérios de aceite das funcionalidades existentes. As melhorias novas ficam no backlog.
+O quadro foi organizado em 30/10/2026 com Scrum adaptado à equipe de dois integrantes. A **Sprint E5** foi de 30/10 a 13/11/2026 e teve como objetivo consolidar a documentação da E5, vincular código e testes e revisar os critérios de aceite das funcionalidades existentes.
+
+Escolhemos Scrum adaptado porque o projeto é entregue em etapas curtas com data fixa (a Sprint E5 coincide com a entrega E5), o trabalho já se organizava em histórias de usuário com critérios de aceite, e o Jira oferece quadro, backlog e histórico sem custo. Com dois integrantes, adaptamos o Scrum: o planejamento e o acompanhamento acontecem pelo quadro e pelo chat do grupo.
 
 Vinícius organiza o Jira, os requisitos e a documentação; Raphael mantém a pipeline e participa da revisão. Ambos desenvolvem e revisam as alterações do outro. Nos papéis do Scrum, Vinícius atua como Scrum Master e Raphael como Product Owner, responsável por priorizar o backlog, e ambos acumulam o papel de desenvolvedores.
 
-O planejamento seleciona os itens no início da sprint. O acompanhamento ocorre pelo quadro e pelo chat do grupo, com atualização a cada mudança de status e registro dos impedimentos. A revisão do incremento e a retrospectiva ficam para o encerramento da sprint. O histórico dessas práticas começa com a adoção do Jira; as funcionalidades anteriores foram relacionadas ao código retrospectivamente.
+O planejamento seleciona os itens no início da sprint. O acompanhamento ocorre pelo quadro e pelo chat do grupo, com atualização a cada mudança de status e registro dos impedimentos. A retrospectiva da sprint está registrada em [Lições aprendidas](#lições-aprendidas). O histórico dessas práticas começa com a adoção do Jira; as funcionalidades anteriores foram relacionadas ao código retrospectivamente.
 
 Fluxo de trabalho:
 
@@ -280,29 +322,107 @@ Para iniciar um item (DoR), a história deve ter objetivo, critérios de aceite,
 
 Cada mudança usa uma branch e um PR; o outro integrante revisa, aprova e faz o merge. O PR deve citar a chave do Jira, por exemplo `SCRUM-8`. O cartão recebe o link do PR e dos testes correspondentes.
 
-O acompanhamento considera quantidade de itens por status, itens concluídos por sprint e tempo entre **In Progress** e **Done**, a partir do histórico do Jira. Ainda não há sprint concluída nem medição histórica de tempo de ciclo.
+A revisão formal por PR, com aprovação do outro integrante, passou a ser aplicada a partir dos PRs #13 e #14. Os PRs anteriores não tiveram essa revisão no momento do merge; cinco deles (#3, #6, #7, #8 e #11) receberam revisão retroativa em 13/11/2026, registrada como comentário.
 
-### Histórias e rastreabilidade
+O acompanhamento considera a quantidade de itens por status e os itens concluídos por sprint, a partir do quadro do Jira.
 
-Situação em 31/10/2026. O Jira concentra os critérios de aceite e o status atualizado.
+Métrica da Sprint E5 (30/10 a 13/11/2026): **12/12 itens concluídos** (7 histórias de usuário, 3 tarefas de documentação e processo e 2 tarefas de refactoring).
 
-| História | Requisitos | Situação | Código e testes |
-|---|---|---|---|
-| [US01 / SCRUM-5 — Reservar recurso](https://reservas-c14.atlassian.net/browse/SCRUM-5) | RF08–RF10 | In Review; funcionalidade existente, validação parcial | [PR #1](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/1), [PR #2](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/2), [API](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/commit/b760cab), [ReservaServiceTest](backend/src/test/java/com/reservas/sistemareservas/service/ReservaServiceTest.java), [ValidadorHorarioReservaTest](backend/src/test/java/com/reservas/sistemareservas/service/ValidadorHorarioReservaTest.java) e [testes de limites](backend/src/test/java/com/reservas/sistemareservas/service/ValidadorHorarioReservaLimitesTest.java) |
-| [US02 / SCRUM-6 — Cancelar reserva](https://reservas-c14.atlassian.net/browse/SCRUM-6) | RF07, RF12–RF13 | In Review; funcionalidade existente, validação parcial | [API](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/commit/b760cab), [testes do serviço](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/commit/102fc18), [PR #2](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/2), [ReservaServiceTest](backend/src/test/java/com/reservas/sistemareservas/service/ReservaServiceTest.java) e [RegraCancelamentoServiceTest](backend/src/test/java/com/reservas/sistemareservas/service/RegraCancelamentoServiceTest.java) |
-| [US03 / SCRUM-7 — Desativar recurso](https://reservas-c14.atlassian.net/browse/SCRUM-7) | RF16 | To Do; implementação pendente | PR e testes pendentes |
-| [US04 / SCRUM-8 — Armazenar senha com hash](https://reservas-c14.atlassian.net/browse/SCRUM-8) | RNF08 | In Review; restauração do BCrypt sobre a base com deploy externo | [SenhaConfig](backend/src/main/java/com/reservas/sistemareservas/config/SenhaConfig.java), [UsuarioService](backend/src/main/java/com/reservas/sistemareservas/service/UsuarioService.java), [UsuarioServiceTest](backend/src/test/java/com/reservas/sistemareservas/service/UsuarioServiceTest.java) e [UsuarioControllerTest](backend/src/test/java/com/reservas/sistemareservas/controller/UsuarioControllerTest.java) |
-| [US05 / SCRUM-9 — Impedir cancelamento após o início](https://reservas-c14.atlassian.net/browse/SCRUM-9) | RF17 | To Do; implementação pendente | PR e testes pendentes |
-| [US06 / SCRUM-10 — Cadastrar usuário](https://reservas-c14.atlassian.net/browse/SCRUM-10) | RF01–RF02 | In Review; funcionalidade existente, validação parcial | [API](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/commit/b760cab), [testes do serviço](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/commit/102fc18), [teste do controller](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/commit/695b328), [UsuarioServiceTest](backend/src/test/java/com/reservas/sistemareservas/service/UsuarioServiceTest.java) e [UsuarioControllerTest](backend/src/test/java/com/reservas/sistemareservas/controller/UsuarioControllerTest.java) |
-| [US07 / SCRUM-11 — Deploy externo](https://reservas-c14.atlassian.net/browse/SCRUM-11) | RNF06, RNF09 | In Progress; API pública e persistência verificadas, Jenkins pendente | [PR #7](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/7), [Dockerfile](Dockerfile), [Jenkinsfile](Jenkinsfile), [script de deploy](scripts/deploy-render.ps1), [testes do script](scripts/Test-DeployRender.ps1), [verificação HTTP](scripts/Test-CriteriosApi.ps1) e [evidência](docs/evidencias/deploy-publico.json) |
+![Quadro da Sprint E5 no Jira com os 12 itens concluídos](docs/evidencias/jira-sprint-e5.jpg)
 
-Na US01 e na US02, os testes adicionais de início no passado e segunda tentativa de cancelamento estão no PR #8, ainda em revisão. A execução local com TiDB real já comprovou o conflito HTTP 409 e os fluxos de reserva. Os mocks continuam sendo testes isolados e não executam a consulta SQL.
+### Histórias de usuário
 
-Na US06, os testes do controller cobrem criação com HTTP 201, consultas sem senha ou hash, e-mail inválido com HTTP 400, limite de senha com HTTP 422 e usuário inexistente com HTTP 404. Os casos unitários de HTTP 409, nome vazio, senha curta e tipo ausente ainda não estão nessa classe. Em 12/11/2026, a restauração do BCrypt com a configuração de deploy passou em 44 testes Java e seis testes PowerShell; os builds do Jenkins continuam pendentes.
+Os critérios foram verificados nos testes automatizados e chamando a API em execução.
 
-Cada integrante cadastrou ao menos uma história: as US01 a US05 estão na conta do Vinícius, e a US06, na do Raphael. A E5 ainda depende da revisão e integração deste README, da conferência do acesso do monitor ao Jira e do envio dos links pelo líder.
+| História | Jira | Prioridade | Status final | Implementação | Testes |
+|---|---|---|---|---|---|
+| US01 Reservar recurso | SCRUM-5 | Alta | Entregue | commit `b760cab` (primeira entrega, sem PR) e [PR #1](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/1) (validação de horários) | `ReservaServiceTest` (criar_*), `ValidadorHorarioReserva*Test` ([#1](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/1), [#2](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/2)) |
+| US02 Cancelar reserva | SCRUM-6 | Alta | Entregue | commit `b760cab` (sem PR) e [PR #8](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/8) (refactor do cálculo de multa) | `ReservaServiceTest` (cancelar_*), commit `102fc18` e [PR #2](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/2) |
+| US03 Desativar recurso | SCRUM-7 | Média | Entregue | [PR #14](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/14) | `RecursoServiceTest` |
+| US04 Senha com hash | SCRUM-8 | Média | Entregue | [PR #6](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/6), revertido no [PR #10](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/10) e restaurado no [PR #11](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/11) | `UsuarioServiceTest`, `UsuarioControllerTest` |
+| US05 Bloquear cancelamento após o início | SCRUM-9 | Média | Entregue | [PR #14](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/14) | `ReservaServiceCancelamentoIniciadaTest` |
+| US06 Cadastrar usuário | SCRUM-10 | Alta | Entregue | commit `b760cab` (sem PR); registro da história no [PR #5](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/5) | `UsuarioServiceTest`, `UsuarioControllerTest` (commit `102fc18`) |
+| US07 Deploy externo | SCRUM-11 | Média | Entregue | commit `9b05d2b` (Jenkinsfile), [PR #7](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/7) e [PR #12](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/12) | testes do script de deploy (PowerShell) |
+
+#### US01 — Reservar recurso
+Como usuário (aluno, professor ou funcionário), quero reservar um recurso em um período para garantir seu uso sem conflito com outras reservas.
+- **Dado** um recurso ativo e livre, **quando** reservo um período futuro, **então** a reserva é criada com status PENDENTE (201).
+- **Dado** uma reserva das 10h às 11h, **quando** alguém reserva das 10h30 às 11h30, **então** o sistema recusa (409).
+- **Dado** uma reserva das 10h às 11h, **quando** alguém reserva das 11h às 12h, **então** a reserva é aceita (201).
+- **Dado** início no passado, fim igual ou anterior ao início, ou recurso inativo, **quando** tento reservar, **então** o sistema recusa (422).
+
+#### US02 — Cancelar reserva
+Como usuário, quero cancelar uma reserva para liberar o recurso, sabendo a multa prevista na regra daquele recurso.
+- **Dado** regra de 24h de antecedência e 30% de multa, **quando** cancelo com 3 dias de antecedência, **então** não há multa.
+- **Dado** a mesma regra, **quando** cancelo com cerca de 2h de antecedência, **então** a multa é de 30%.
+- **Dado** um recurso que não permite cancelamento, **quando** cancelo, **então** o sistema recusa (422).
+- **Dado** uma reserva já cancelada, **quando** cancelo de novo, **então** o sistema recusa (422) e preserva os dados.
+
+#### US03 — Desativar recurso
+Como gestor de recursos, quero desativar um recurso para que ele deixe de aceitar novas reservas.
+- **Dado** um recurso ativo, **quando** chamo `PATCH /recursos/{id}/desativar`, **então** o recurso continua cadastrado com `ativo=false`.
+- **Dado** um recurso desativado, **quando** alguém tenta reservá-lo, **então** o sistema recusa (422).
+- **Dado** um recurso desativado, **quando** chamo `PATCH /recursos/{id}/ativar`, **então** ele volta a aceitar reservas (201 ao reservar um período livre).
+- **Dado** um id inexistente, **quando** tento desativar ou reativar, **então** o sistema responde 404.
+
+#### US04 — Senha com hash
+Como usuário, quero que minha senha seja guardada com hash para que ela não seja exposta em caso de vazamento.
+- **Dado** um cadastro válido, **quando** o usuário é salvo, **então** a senha fica armazenada com BCrypt (custo 10).
+- **Dado** qualquer consulta de usuário, **quando** a API responde, **então** a resposta não traz senha nem hash.
+- **Dado** uma senha com mais de 72 bytes, **quando** me cadastro, **então** o sistema recusa (422).
+
+#### US05 — Bloquear cancelamento após o início
+Como usuário, quero que reservas já iniciadas não possam ser canceladas para manter o histórico de uso consistente.
+- **Dado** uma reserva cujo horário de início já passou, **quando** alguém tenta cancelá-la, **então** o sistema recusa (422) e mantém status e dados.
+- **Dado** uma reserva que ainda não começou, **quando** alguém a cancela, **então** o cancelamento continua permitido.
+
+#### US06 — Cadastrar usuário
+Como pessoa da instituição, quero me cadastrar como aluno, professor ou funcionário para poder fazer reservas.
+- **Dado** dados válidos, **quando** me cadastro, **então** o usuário é criado (201).
+- **Dado** um e-mail já cadastrado, **quando** outro cadastro o usa, **então** o sistema recusa (409).
+- **Dado** um e-mail inválido, **quando** me cadastro, **então** o sistema recusa (400).
+
+#### US07 — Deploy externo
+Como equipe, quero a API publicada em uma URL pública para que possa ser usada e avaliada sem rodar localmente.
+- **Dado** um commit na `main` com testes e cobertura aprovados, **quando** a pipeline termina, **então** o stage Deploy aciona o Render, que publica esse commit.
+- **Dado** a aplicação publicada, **quando** consulto `/actuator/health` e `/actuator/info`, **então** vejo `UP` e o commit publicado.
 
 As tarefas de acompanhamento são [documentação / SCRUM-1](https://reservas-c14.atlassian.net/browse/SCRUM-1), [revisão do README / SCRUM-2](https://reservas-c14.atlassian.net/browse/SCRUM-2) e [participação, acesso e envio / SCRUM-3](https://reservas-c14.atlassian.net/browse/SCRUM-3). Elas substituíram os cartões de exemplo criados no cadastro inicial.
+
+## Dinâmica de desenvolvimento
+
+### Divisão de tarefas e decisões
+
+| Área | Quem |
+|---|---|
+| Base do backend: entidades, migration, API, testes unitários, pipeline inicial no Jenkins | Raphael |
+| Validação de horários e testes de cancelamento, quality gate de cobertura, BCrypt, deploy no Render com TiDB, refactorings de reservas | Vinícius |
+| Jira, requisitos e documentação | Vinícius |
+| Manutenção do pipeline, merge dos PRs e refactorings de recursos e testes | Raphael |
+
+As decisões foram tomadas em conversa no chat do grupo. As principais: Spring Boot, Maven, MySQL e Flyway; herança entre os tipos de recurso; uma regra de cancelamento por recurso; validação de horário isolada em uma classe sem banco, para ser testável; Jenkins; e deploy externo no Render para ter a API publicada. O escopo é só o backend (API REST), sem interface gráfica.
+
+### Branches, commits e revisão
+
+- **Commits:** padrão Conventional Commits em português (`feat`, `fix`, `test`, `docs`, `chore`, `ci`, `refactor`).
+- **Branches:** no início, parte do código foi enviada direto para a `main`. Depois, o Vinícius passou a abrir PRs a partir de branches do fork dele. Há várias PRs, e a `main` foi atualizada por merge.
+- **Revisão:** Os PRs foram mesclados sem revisões nem comentários registrados no GitHub; as revisões dos PRs anteriores foram feitas depois e as dos novos passaram a ser registradas no GitHub antes do merge.
+
+### Conflitos e bloqueios
+
+- **Repositório no lugar errado:** foi criado na conta pessoal em vez da organização e precisou ser transferido, com permissões de admin.
+- **Ambiente local:** a porta 8080 estava ocupada (a API passou a rodar na 8081) e o MariaDB local desligava sozinho, derrubando o deploy local.
+- **Jenkins:** o primeiro build falhou por causa do `mvnw.cmd` no Windows; foram necessárias cinco correções (`fix(ci)`) até o deploy local funcionar. Esse deploy foi depois substituído pelo deploy no Render.
+- **Testes dependentes de banco:** o teste de contexto do Spring exigia MySQL e quebraria na CI; foi trocado por um teste de controller sem banco.
+- **BCrypt:** a hash de senha entrou (PR #6), foi revertida (PR #10) e restaurada sobre a base com deploy externo (PR #11).
+- **Histórico:** a `main` foi reescrita uma vez, em 17/10/2026, para remover uma linha de coautoria de IA de uma mensagem de commit.
+
+### Lições aprendidas
+
+1. Adotar PRs com revisão registrada desde o primeiro commit, e não só mais tarde.
+2. Montar a pipeline e o ambiente de deploy cedo, antes de acumular código.
+3. Não depender de banco local nos testes unitários.
+4. Combinar cedo credenciais, ambientes e portas.
 
 ## Uso de IA
 
