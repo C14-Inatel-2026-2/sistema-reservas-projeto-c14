@@ -74,6 +74,14 @@ class ReservaServiceTest {
                 .horasMinimasAntecedencia(horas).percentualMulta(multa).build();
     }
 
+    private void dadoReservaExistente(Reserva reserva) {
+        when(reservaRepository.findById(reserva.getId())).thenReturn(Optional.of(reserva));
+    }
+
+    private void dadoRegraDoRecurso(Optional<RegraCancelamento> regra) {
+        when(regraRepository.findByRecursoId(quadra.getId())).thenReturn(regra);
+    }
+
     @Test
     void criar_comHorarioLivre_salvaReservaPendente() {
         LocalDateTime inicio = LocalDateTime.now().plusDays(2);
@@ -137,8 +145,8 @@ class ReservaServiceTest {
     @Test
     void cancelar_comAntecedenciaSuficiente_naoAplicaMulta() {
         Reserva reserva = reservaComecandoEm(LocalDateTime.now().plusDays(3));
-        when(reservaRepository.findById(5L)).thenReturn(Optional.of(reserva));
-        when(regraRepository.findByRecursoId(10L)).thenReturn(Optional.of(regra(true, 24, 30.0)));
+        dadoReservaExistente(reserva);
+        dadoRegraDoRecurso(Optional.of(regra(true, 24, 30.0)));
 
         CancelamentoResponse resposta = reservaService.cancelar(5L, null);
 
@@ -150,8 +158,8 @@ class ReservaServiceTest {
     @Test
     void cancelar_foraDaAntecedenciaMinima_aplicaMultaDaRegra() {
         Reserva reserva = reservaComecandoEm(LocalDateTime.now().plusHours(2));
-        when(reservaRepository.findById(5L)).thenReturn(Optional.of(reserva));
-        when(regraRepository.findByRecursoId(10L)).thenReturn(Optional.of(regra(true, 24, 30.0)));
+        dadoReservaExistente(reserva);
+        dadoRegraDoRecurso(Optional.of(regra(true, 24, 30.0)));
 
         CancelamentoResponse resposta = reservaService.cancelar(5L, null);
 
@@ -162,8 +170,8 @@ class ReservaServiceTest {
     @Test
     void cancelar_quandoRecursoNaoPermite_lancaRegraNegocioEMantemStatus() {
         Reserva reserva = reservaComecandoEm(LocalDateTime.now().plusDays(3));
-        when(reservaRepository.findById(5L)).thenReturn(Optional.of(reserva));
-        when(regraRepository.findByRecursoId(10L)).thenReturn(Optional.of(regra(false, 0, 0.0)));
+        dadoReservaExistente(reserva);
+        dadoRegraDoRecurso(Optional.of(regra(false, 0, 0.0)));
 
         assertThrows(RegraNegocioException.class, () -> reservaService.cancelar(5L, null));
 
@@ -173,8 +181,8 @@ class ReservaServiceTest {
     @Test
     void cancelar_semRegra_naoAplicaMultaERegistraMotivo() {
         Reserva reserva = reservaComecandoEm(LocalDateTime.now().plusDays(3));
-        when(reservaRepository.findById(5L)).thenReturn(Optional.of(reserva));
-        when(regraRepository.findByRecursoId(10L)).thenReturn(Optional.empty());
+        dadoReservaExistente(reserva);
+        dadoRegraDoRecurso(Optional.empty());
 
         CancelamentoResponse resposta = reservaService.cancelar(5L,
                 new CancelamentoRequest("Mudança de planos"));
@@ -193,7 +201,7 @@ class ReservaServiceTest {
         reserva.setStatus(StatusReserva.CANCELADA);
         reserva.setCanceladoEm(canceladoEm);
         reserva.setMotivoCancelamento("Motivo anterior");
-        when(reservaRepository.findById(5L)).thenReturn(Optional.of(reserva));
+        dadoReservaExistente(reserva);
 
         assertThrows(RegraNegocioException.class, () -> reservaService.cancelar(5L,
                 new CancelamentoRequest("Novo motivo")));
