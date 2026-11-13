@@ -1,0 +1,23 @@
+{
+  "data": "2026-11-13",
+  "etapa": "antes dos refactorings de recursos e testes",
+  "ambiente": "Jenkins local em Windows, JDK 21; testes do deploy em Windows PowerShell",
+  "branch": "main",
+  "commit": "4a2f333cb31bf6171a46597aa764100e935628bb",
+  "comando": "pipeline do Jenkinsfile (Build, Testes, Cobertura e Deploy pulado fora da main)",
+  "java": {
+    "tests": 48,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "deploy": {
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "coberturaLinhas": 64.71,
+  "jenkins": "sucesso; build 1 do job sistema-reservas-validacao",
+  "observacao": "Referencia anterior aos refactorings de RecursoResponse e ReservaServiceTest. O commit foi construido pelo SHA para que o stage Deploy fosse pulado."
+}

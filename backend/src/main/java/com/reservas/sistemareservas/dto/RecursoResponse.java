@@ -23,19 +23,34 @@ public record RecursoResponse(
 
     public static RecursoResponse de(Recurso recurso) {
         Object r = Hibernate.unproxy(recurso);
-        if (r instanceof SalaEstudo s) {
-            return new RecursoResponse(s.getId(), "SALA_ESTUDO", s.getNome(), s.getLocalizacao(), s.isAtivo(),
-                    s.getCapacidadePessoas(), s.isPossuiProjetor(), null, null, null, null);
+        if (r instanceof SalaEstudo sala) {
+            return deSala(sala);
         }
-        if (r instanceof Quadra q) {
-            return new RecursoResponse(q.getId(), "QUADRA", q.getNome(), q.getLocalizacao(), q.isAtivo(),
-                    null, null, q.getModalidade(), q.isCoberta(), null, null);
+        if (r instanceof Quadra quadra) {
+            return deQuadra(quadra);
         }
-        if (r instanceof EquipamentoLaboratorio e) {
-            return new RecursoResponse(e.getId(), "EQUIPAMENTO_LABORATORIO", e.getNome(), e.getLocalizacao(),
-                    e.isAtivo(), null, null, null, null, e.getLaboratorio(), e.getNumeroPatrimonio());
+        if (r instanceof EquipamentoLaboratorio equipamento) {
+            return deEquipamento(equipamento);
         }
-        Recurso base = (Recurso) r;
+        return deRecursoBase((Recurso) r);
+    }
+
+    private static RecursoResponse deSala(SalaEstudo s) {
+        return new RecursoResponse(s.getId(), "SALA_ESTUDO", s.getNome(), s.getLocalizacao(), s.isAtivo(),
+                s.getCapacidadePessoas(), s.isPossuiProjetor(), null, null, null, null);
+    }
+
+    private static RecursoResponse deQuadra(Quadra q) {
+        return new RecursoResponse(q.getId(), "QUADRA", q.getNome(), q.getLocalizacao(), q.isAtivo(),
+                null, null, q.getModalidade(), q.isCoberta(), null, null);
+    }
+
+    private static RecursoResponse deEquipamento(EquipamentoLaboratorio e) {
+        return new RecursoResponse(e.getId(), "EQUIPAMENTO_LABORATORIO", e.getNome(), e.getLocalizacao(),
+                e.isAtivo(), null, null, null, null, e.getLaboratorio(), e.getNumeroPatrimonio());
+    }
+
+    private static RecursoResponse deRecursoBase(Recurso base) {
         return new RecursoResponse(base.getId(), null, base.getNome(), base.getLocalizacao(), base.isAtivo(),
                 null, null, null, null, null, null);
     }
