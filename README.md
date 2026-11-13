@@ -242,8 +242,8 @@ Tarefas: [reservas / SCRUM-12](https://reservas-c14.atlassian.net/browse/SCRUM-1
 |---|---|---|---|---|
 | Vinícius | `criar` mistura validação, montagem e persistência. | Extrair `montarReserva`, separando a construção da entidade das verificações. | [PR #8](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/8), commit `476febb` | Aplicado na branch; revisão e Jenkins pendentes |
 | Vinícius | `cancelar` concentra regra, cálculo de multa e mudança de estado. | Extrair `calcularPercentualMulta`, preservando o mesmo instante e a comparação de antecedência. | [PR #8](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/8), commit `1b6f428` | Aplicado na branch; revisão e Jenkins pendentes |
-| Raphael | Mapeamento extenso dos tipos de recurso. | Extrair os mapeamentos específicos de `RecursoResponse`, preservando campos e proxies. | PR pendente | Planejado |
-| Raphael | Preparação repetida nos testes de cancelamento. | Extrair um helper de preparação em `ReservaServiceTest`, mantendo as verificações. | PR pendente | Planejado |
+| Raphael | Mapeamento extenso dos tipos de recurso. | Extrair os mapeamentos específicos de `RecursoResponse`, preservando campos e proxies. | [PR #13](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/13), commit `3828d14` | Aplicado na branch; revisão e Jenkins pendentes |
+| Raphael | Preparação repetida nos testes de cancelamento. | Extrair os helpers `dadoReservaExistente` e `dadoRegraDoRecurso` em `ReservaServiceTest`, mantendo as verificações. | [PR #13](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/13), commit `b4beaac` | Aplicado na branch; revisão e Jenkins pendentes |
 
 Em 12/11/2026, `mvnw.cmd -B -ntp clean verify` com JDK 21 passou antes e depois dos dois refactorings de Vinícius: 40 testes, sem falhas. A cobertura de linhas foi de 61,93% para 62,50%. Os quatro testes novos e as verificações adicionais foram registrados antes das extrações, no commit `4ec64e1`; não contam como refactorings.
 
