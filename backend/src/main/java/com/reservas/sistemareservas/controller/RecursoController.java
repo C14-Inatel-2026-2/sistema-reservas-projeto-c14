@@ -64,6 +64,11 @@ public class RecursoController {
         return recursoService.desativar(id);
     }
 
+    @PatchMapping("/{id}/ativar")
+    public RecursoResponse ativar(@PathVariable Long id) {
+        return recursoService.ativar(id);
+    }
+
     @PutMapping("/{id}/regra-cancelamento")
     public RegraCancelamentoResponse definirRegra(@PathVariable Long id,
                                                   @Valid @RequestBody RegraCancelamentoRequest request) {

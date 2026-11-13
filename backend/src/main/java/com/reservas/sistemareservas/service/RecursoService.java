@@ -70,9 +70,18 @@ public class RecursoService {
 
     @Transactional
     public RecursoResponse desativar(Long id) {
+        return alterarDisponibilidade(id, false);
+    }
+
+    @Transactional
+    public RecursoResponse ativar(Long id) {
+        return alterarDisponibilidade(id, true);
+    }
+
+    private RecursoResponse alterarDisponibilidade(Long id, boolean ativo) {
         Recurso recurso = recursoRepository.findById(id)
                 .orElseThrow(() -> new EntidadeNaoEncontradaException("Recurso", id));
-        recurso.setAtivo(false);
+        recurso.setAtivo(ativo);
         return RecursoResponse.de(recurso);
     }
 
