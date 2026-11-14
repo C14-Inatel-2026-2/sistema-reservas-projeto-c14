@@ -86,6 +86,9 @@ public class ReservaService {
         }
 
         LocalDateTime agora = LocalDateTime.now();
+        if (!agora.isBefore(reserva.getDataHoraInicio())) {
+            throw new RegraNegocioException("Não é possível cancelar uma reserva que já começou.");
+        }
         double multa = calcularPercentualMulta(reserva, agora);
 
         reserva.setStatus(StatusReserva.CANCELADA);

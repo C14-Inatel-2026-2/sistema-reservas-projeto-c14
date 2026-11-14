@@ -12,6 +12,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -56,6 +57,16 @@ public class RecursoController {
     @GetMapping("/{id}")
     public RecursoResponse buscar(@PathVariable Long id) {
         return recursoService.buscar(id);
+    }
+
+    @PatchMapping("/{id}/desativar")
+    public RecursoResponse desativar(@PathVariable Long id) {
+        return recursoService.desativar(id);
+    }
+
+    @PatchMapping("/{id}/ativar")
+    public RecursoResponse ativar(@PathVariable Long id) {
+        return recursoService.ativar(id);
     }
 
     @PutMapping("/{id}/regra-cancelamento")
