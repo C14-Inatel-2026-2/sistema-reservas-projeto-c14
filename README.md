@@ -6,7 +6,7 @@ Projeto da disciplina C14 – Engenharia de Software (Inatel, 2026/2). O projeto
 
 **Escopo:** o sistema é uma API REST, sem interface gráfica. Ela é usada por chamadas HTTP (curl, Postman ou o navegador, para as consultas), e os endpoints e exemplos estão na seção [Endpoints](#endpoints). Autenticação de usuários (RF15) e edição ou exclusão de registros (RF18) ficaram fora desta entrega.
 
-**API pública:** [https://sistema-reservas-c14.onrender.com](https://sistema-reservas-c14.onrender.com).
+**API pública:** `https://sistema-reservas-c14.onrender.com`. Por ser apenas uma API, a raiz (`/`) não tem página inicial e responde 404; use os endereços abaixo.
 Para conferir no navegador: [saúde da API](https://sistema-reservas-c14.onrender.com/actuator/health), [versão publicada](https://sistema-reservas-c14.onrender.com/actuator/info) e [recursos cadastrados](https://sistema-reservas-c14.onrender.com/recursos).
 
 O Render Free pode hibernar após 15 minutos sem tráfego. A primeira chamada após esse período pode levar cerca de um minuto.
@@ -74,7 +74,7 @@ cd backend
 
 O relatório de cobertura é gerado em `backend/target/site/jacoco/index.html`.
 
-Situação em 13/11/2026: 55 testes Java (JUnit 5 e Mockito) e 6 testes do script de deploy em PowerShell, todos passando. A cobertura de linhas medida pelo JaCoCo é de 65,4% (140 de 214 linhas).
+Situação em 14/11/2026 (build #9 do Jenkins na `main`): 57 testes Java (JUnit 5 e Mockito) e 6 testes do script de deploy em PowerShell, todos passando. A cobertura de linhas medida pelo JaCoCo é de 65,9%.
 
 ## Endpoints
 
@@ -158,10 +158,10 @@ curl -X PATCH http://localhost:8080/recursos/1/desativar
 | RF12 | Cancelar reserva com motivo opcional, exceto quando ela já estiver cancelada ou quando o recurso não permitir cancelamento. | Implementado |
 | RF13 | Aplicar o percentual de multa da regra quando o cancelamento ocorrer com antecedência menor que a mínima. | Implementado |
 | RF14 | Listar reservas, com filtro opcional por usuário e/ou recurso, e buscar reserva por id. | Implementado |
-| RF15 | Autenticar usuários e permitir que apenas o dono da reserva a cancele. | Pendente |
+| RF15 | Autenticar usuários e permitir que apenas o dono da reserva a cancele. | Não implementado (a API não tem login nem identifica quem cancela) |
 | RF16 | Ativar e desativar recursos; recursos inativos não aceitam novas reservas. | Implementado |
 | RF17 | Impedir o cancelamento de reservas já iniciadas ou encerradas. | Implementado |
-| RF18 | Editar e excluir usuários, recursos e reservas. | Pendente |
+| RF18 | Editar e excluir usuários, recursos e reservas. | Não implementado (não há endpoints de edição nem de exclusão) |
 
 ## Requisitos não funcionais
 
@@ -171,26 +171,27 @@ curl -X PATCH http://localhost:8080/recursos/1/desativar
 | RNF02 | Banco MySQL 8 ou TiDB compatível com MySQL, com esquema versionado por migrations Flyway. | `db/migration/` | Validado com MySQL local e TiDB Cloud via TLS |
 | RNF03 | API REST com JSON e códigos HTTP padronizados: 400 (validação), 404 (não encontrado), 409 (conflito), 422 (regra de negócio). | `GlobalExceptionHandler` | Atendido |
 | RNF04 | Erros tratados pelo `GlobalExceptionHandler` no formato `{status, mensagem, detalhes}`. | `ErroResponse` | Atendido |
-| RNF05 | Sinalizar o build como instável quando a cobertura de linhas ficar abaixo de 40%. | Quality gate no Jenkins | Configurado; cobertura de linhas de 65,4% em 13/11/2026 |
-| RNF06 | Automatizar build, testes, publicação de cobertura e deploy pelo Jenkins. | `Jenkinsfile` e `scripts/deploy-render.ps1` | Serviço publicado e hook validado localmente; credenciais e execução no Jenkins pendentes |
+| RNF05 | Sinalizar o build como instável quando a cobertura de linhas ficar abaixo de 40%. | Quality gate no Jenkins | Configurado; cobertura de linhas de 65,9% no build #9 (14/11/2026) |
+| RNF06 | Automatizar build, testes, publicação de cobertura e deploy pelo Jenkins. | `Jenkinsfile` e `scripts/deploy-render.ps1` | Implementado; build #9 do Jenkins na `main` verde, com deploy no Render |
 | RNF07 | Credenciais do banco configuráveis por variáveis de ambiente (`DB_USERNAME`, `DB_PASSWORD`). | `application.properties` | Atendido |
 | RNF08 | Senhas armazenadas com hash (BCrypt), nunca em texto puro. | `SenhaConfig`, `UsuarioService` e testes de usuário | Integrado pelo PR #11. Usuário legado do TiDB convertido em 12/11/2026. |
 | RNF09 | Disponibilizar a API por HTTPS fora da máquina do Jenkins, com banco persistente compatível com MySQL. | Docker, Render, TiDB e health check | API pública e persistência após novo deploy verificadas em 13/11/2026 |
 
 ## CI/CD
 
-A pipeline está no `Jenkinsfile` e roda em um agente Windows:
+A pipeline está no `Jenkinsfile` e roda em um agente Windows. A etapa Quality Gate foi separada da publicação da cobertura no [PR #16](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/16), de Vinícius:
 
 1. **Build:** compila e gera o `.jar`.
 2. **Testes:** executa os testes Java e seis testes do script de deploy; publica ambos no JUnit.
-3. **Cobertura:** publica o relatório do JaCoCo e aplica o quality gate de 40% de linhas.
-4. **Deploy:** na `main`, com build bem-sucedido e cobertura aprovada, aciona o Render para o SHA testado. Aguarda `/actuator/health` com status `UP` e `/actuator/info` com o mesmo commit. PRs e branches de desenvolvimento não publicam a aplicação.
+3. **Quality Gate:** lê o relatório do JaCoCo e marca o build como instável se a cobertura de linhas ficar abaixo de 40%.
+4. **Cobertura:** publica o relatório HTML do JaCoCo.
+5. **Deploy:** na `main`, com build bem-sucedido e cobertura aprovada, aciona o Render para o SHA testado. Aguarda `/actuator/health` com status `UP` e `/actuator/info` com o mesmo commit. PRs e branches de desenvolvimento não publicam a aplicação.
 
-O Jenkins continua usando um agente Windows com JDK 21. As credenciais `render-deploy-hook` e `render-service-url` precisam ser cadastradas antes de executar o novo deploy. A validação completa no Jenkins depende dessa configuração.
+O Jenkins usa um agente Windows com JDK 21 e as credenciais `render-deploy-hook` e `render-service-url`, já cadastradas. O build #9 na `main` executou as cinco etapas com sucesso (detalhes em [Validação do deploy](#validação-do-deploy)).
 
 ## Deploy externo
 
-A API está publicada no **Render Free**, com banco **TiDB Cloud Starter, MySQL Compatible**, ambos em Virginia (`us-east-1` no TiDB). O BCrypt está integrado pelo PR #11. A execução completa pelo Jenkins ainda depende do cadastro das credenciais e dos builds.
+A API está publicada no **Render Free**, com banco **TiDB Cloud Starter, MySQL Compatible**, ambos em Virginia (`us-east-1` no TiDB). O BCrypt está integrado pelo PR #11. O deploy pelo Jenkins foi validado no build #9, descrito em [Validação do deploy](#validação-do-deploy).
 
 ### Testar com Docker localmente
 
@@ -258,11 +259,13 @@ Em 05/11/2026: imagem Docker gerada; 36 testes Java e seis testes do script pass
 
 Em 12/11/2026: a aplicação executou com TiDB 8.5.2 local e limite de 512 MB. A migration original passou; foram verificados cadastro, reserva, conflito de horário (HTTP 409), consulta com filtros, confirmação e cancelamento. Os três `CHECK` e as chaves estrangeiras rejeitaram dados inválidos. Os registros persistiram após reiniciar a API e o banco, e o health check retornou HTTP 503 com o banco interrompido. O consumo observado da API foi de aproximadamente 352 MB.
 
-Na mesma data, a imagem Docker foi conectada ao TiDB Cloud Starter 8.5.3 em Virginia, com `sslMode=VERIFY_IDENTITY` e as autoridades certificadoras padrão do Java 21. A migration V1 original criou as tabelas; os três `CHECK` e as chaves estrangeiras rejeitaram inserções inválidas. Cadastro, e-mail único, reserva, conflito de horário e confirmação passaram. Após substituir o contêiner da API, o usuário e a reserva confirmada continuaram salvos no banco. Também passaram os 36 testes Java e os seis testes do script de deploy, estes no PowerShell 5.1 e 7. A URL pública no Render e a execução da pipeline no Jenkins ainda estão pendentes.
+Na mesma data, a imagem Docker foi conectada ao TiDB Cloud Starter 8.5.3 em Virginia, com `sslMode=VERIFY_IDENTITY` e as autoridades certificadoras padrão do Java 21. A migration V1 original criou as tabelas; os três `CHECK` e as chaves estrangeiras rejeitaram inserções inválidas. Cadastro, e-mail único, reserva, conflito de horário e confirmação passaram. Após substituir o contêiner da API, o usuário e a reserva confirmada continuaram salvos no banco. Também passaram os 36 testes Java e os seis testes do script de deploy, estes no PowerShell 5.1 e 7. A URL pública no Render e a execução da pipeline no Jenkins foram validadas depois, como descrito abaixo.
 
-Em 13/11/2026, o Render publicou a `main` no commit `1dbd0f707ee3c3112d2a43f5bb04d3474732f5df`. A URL HTTPS respondeu com saúde `UP` e o SHA esperado. Passaram 12 grupos de verificações pela API, incluindo os três tipos de recurso, validações de cadastro, unicidade, conflito de horário, períodos adjacentes, confirmação e regras de cancelamento. Após um novo deploy pelo hook, o usuário e a reserva confirmada permaneceram salvos. Essa execução partiu da máquina local; os builds do Jenkins continuam pendentes. [Evidência da publicação](docs/evidencias/deploy-publico.json).
+Em 13/11/2026, o Render publicou a `main` no commit `1dbd0f707ee3c3112d2a43f5bb04d3474732f5df`. A URL HTTPS respondeu com saúde `UP` e o SHA esperado. Passaram 12 grupos de verificações pela API, incluindo os três tipos de recurso, validações de cadastro, unicidade, conflito de horário, períodos adjacentes, confirmação e regras de cancelamento. Após um novo deploy pelo hook, o usuário e a reserva confirmada permaneceram salvos. Essa execução partiu da máquina local; a execução pelo Jenkins está descrita no parágrafo seguinte. [Evidência da publicação](docs/evidencias/deploy-publico.json).
 
-Na revisão dos critérios do Jira, passaram também os 12 critérios das histórias US01, US02 e US06 na mesma versão pública: sobreposição parcial das 14h–16h com 15h–17h recusada, período adjacente aceito, períodos inválidos rejeitados, multa configurável de 20% aplicada conforme a antecedência, cancelamento bloqueado sem alterar o status e cadastro dos três tipos de usuário sem senha/hash nas respostas. [Resultados por critério](docs/evidencias/criterios-publicos.json). A revisão final e os builds do Jenkins continuam pendentes.
+Em 14/11/2026, o build #9 do Jenkins na `main` (commit `6efcef9`, merge do PR #17) passou por Build, Testes, Quality Gate, Cobertura e Deploy, usando as credenciais `render-deploy-hook` e `render-service-url`. Os 57 testes Java passaram sem falhas e a cobertura de linhas ficou em 65,9%, acima do mínimo de 40%. O Deploy confirmou o commit `6efcef9` no Render, e `/actuator/info` e `/actuator/health` responderam com esse commit e status `UP`. O aviso "Source file ... not found" do plugin de cobertura é inofensivo e não afeta o resultado. [Print do build #9](docs/evidencias/jenkins-build-9-main.jpg).
+
+Na revisão dos critérios do Jira, passaram também os 12 critérios das histórias US01, US02 e US06 na mesma versão pública: sobreposição parcial das 14h–16h com 15h–17h recusada, período adjacente aceito, períodos inválidos rejeitados, multa configurável de 20% aplicada conforme a antecedência, cancelamento bloqueado sem alterar o status e cadastro dos três tipos de usuário sem senha/hash nas respostas. [Resultados por critério](docs/evidencias/criterios-publicos.json).
 
 Para repetir a verificação e guardar os IDs de registros fictícios:
 
@@ -272,7 +275,7 @@ Para repetir a verificação e guardar os IDs de registros fictícios:
 .\scripts\Test-DeployExterno.ps1 -BaseUrl https://sistema-reservas-c14.onrender.com -Commit SHA_PUBLICADO -Fase Conferir -StatePath backend/target/aceite-api.json
 ```
 
-O estado do teste e o resumo `aceite-api.resultado.json` ficam em `backend/target`, fora do Git. O script usa outras reservas para cancelamento, preservando a reserva confirmada para a prova de persistência. A conclusão da CI/CD exige também a execução e as evidências do Jenkins.
+O estado do teste e o resumo `aceite-api.resultado.json` ficam em `backend/target`, fora do Git. O script usa outras reservas para cancelamento, preservando a reserva confirmada para a prova de persistência.
 
 ## Refactorings
 
@@ -282,8 +285,8 @@ Tarefas: [reservas / SCRUM-12](https://reservas-c14.atlassian.net/browse/SCRUM-1
 |---|---|---|---|---|
 | Vinícius | `criar` mistura validação, montagem e persistência. | Extrair `montarReserva`, separando a construção da entidade das verificações. | [PR #8](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/8), commit `476febb` | Integrado pelo PR #8; Jenkins verde antes e depois |
 | Vinícius | `cancelar` concentra regra, cálculo de multa e mudança de estado. | Extrair `calcularPercentualMulta`, preservando o mesmo instante e a comparação de antecedência. | [PR #8](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/8), commit `1b6f428` | Integrado pelo PR #8; Jenkins verde antes e depois |
-| Raphael | Mapeamento extenso dos tipos de recurso: `RecursoResponse.de` concentra o mapeamento de todos os tipos em um só método (método longo). | Extrair `deSala`, `deQuadra`, `deEquipamento` e `deRecursoBase`. O motivo é deixar `de` apenas escolhendo o tipo e isolar cada mapeamento, o que facilita ler e alterar um tipo sem mexer nos outros; campos e proxies foram preservados. | [PR #13](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/13), commit `3828d14` | Aplicado; Jenkins verde antes e depois; revisão pendente |
-| Raphael | Preparação repetida nos testes de cancelamento: os mesmos mocks de reserva e de regra são configurados em cada teste (código duplicado). | Extrair os helpers `dadoReservaExistente` e `dadoRegraDoRecurso` em `ReservaServiceTest`. O motivo é reduzir a duplicação e deixar cada teste mostrando só o que o diferencia; as verificações não mudaram, e foram dois helpers porque um teste não pode configurar o repositório de regras. | [PR #13](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/13), commit `b4beaac` | Aplicado; Jenkins verde antes e depois; revisão pendente |
+| Raphael | Mapeamento extenso dos tipos de recurso: `RecursoResponse.de` concentra o mapeamento de todos os tipos em um só método (método longo). | Extrair `deSala`, `deQuadra`, `deEquipamento` e `deRecursoBase`. O motivo é deixar `de` apenas escolhendo o tipo e isolar cada mapeamento, o que facilita ler e alterar um tipo sem mexer nos outros; campos e proxies foram preservados. | [PR #13](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/13), commit `3828d14` | Aplicado; Jenkins verde antes e depois; revisado e mesclado |
+| Raphael | Preparação repetida nos testes de cancelamento: os mesmos mocks de reserva e de regra são configurados em cada teste (código duplicado). | Extrair os helpers `dadoReservaExistente` e `dadoRegraDoRecurso` em `ReservaServiceTest`. O motivo é reduzir a duplicação e deixar cada teste mostrando só o que o diferencia; as verificações não mudaram, e foram dois helpers porque um teste não pode configurar o repositório de regras. | [PR #13](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/13), commit `b4beaac` | Aplicado; Jenkins verde antes e depois; revisado e mesclado |
 
 Em 12/11/2026, `mvnw.cmd -B -ntp clean verify` com JDK 21 passou antes e depois dos dois refactorings de Vinícius: 40 testes, sem falhas. A cobertura de linhas foi de 61,93% para 62,50%. Os quatro testes novos e as verificações adicionais foram registrados antes das extrações, no commit `4ec64e1`; não contam como refactorings.
 
@@ -322,7 +325,7 @@ Para iniciar um item (DoR), a história deve ter objetivo, critérios de aceite,
 
 Cada mudança usa uma branch e um PR; o outro integrante revisa, aprova e faz o merge. O PR deve citar a chave do Jira, por exemplo `SCRUM-8`. O cartão recebe o link do PR e dos testes correspondentes.
 
-A revisão formal por PR, com aprovação do outro integrante, passou a ser aplicada a partir dos PRs #13 e #14. Os PRs anteriores não tiveram essa revisão no momento do merge; cinco deles (#3, #6, #7, #8 e #11) receberam revisão retroativa em 13/11/2026, registrada como comentário.
+A revisão formal por PR, com aprovação do outro integrante, passou a ser aplicada a partir dos PRs #13, #14, #16 e #17. Os PRs anteriores não tiveram essa revisão no momento do merge; cinco deles (#3, #6, #7, #8 e #11) receberam revisão retroativa em 13/11/2026, registrada como comentário.
 
 O acompanhamento considera a quantidade de itens por status e os itens concluídos por sprint, a partir do quadro do Jira.
 
@@ -340,7 +343,7 @@ Os critérios foram verificados nos testes automatizados e chamando a API em exe
 | US02 Cancelar reserva | SCRUM-6 | Alta | Entregue | commit `b760cab` (sem PR) e [PR #8](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/8) (refactor do cálculo de multa) | `ReservaServiceTest` (cancelar_*), commit `102fc18` e [PR #2](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/2) |
 | US03 Desativar recurso | SCRUM-7 | Média | Entregue | [PR #14](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/14) | `RecursoServiceTest` |
 | US04 Senha com hash | SCRUM-8 | Média | Entregue | [PR #6](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/6), revertido no [PR #10](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/10) e restaurado no [PR #11](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/11) | `UsuarioServiceTest`, `UsuarioControllerTest` |
-| US05 Bloquear cancelamento após o início | SCRUM-9 | Média | Entregue | [PR #14](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/14) | `ReservaServiceCancelamentoIniciadaTest` |
+| US05 Bloquear cancelamento após o início | SCRUM-9 | Média | Entregue | [PR #14](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/14) e [PR #17](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/17) (testes de limite) | `ReservaServiceCancelamentoIniciadaTest` |
 | US06 Cadastrar usuário | SCRUM-10 | Alta | Entregue | commit `b760cab` (sem PR); registro da história no [PR #5](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/5) | `UsuarioServiceTest`, `UsuarioControllerTest` (commit `102fc18`) |
 | US07 Deploy externo | SCRUM-11 | Média | Entregue | commit `9b05d2b` (Jenkinsfile), [PR #7](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/7) e [PR #12](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/12) | testes do script de deploy (PowerShell) |
 
@@ -426,11 +429,44 @@ As decisões foram tomadas em conversa no chat do grupo. As principais: Spring B
 
 ## Uso de IA
 
-Foram usados Claude Opus 5.5, na sessão anterior, e Codex, na organização da E5, para leitura do repositório, rascunho de requisitos e documentação, apoio ao Jenkinsfile e cadastro das histórias no Jira. Os requisitos pendentes foram separados do comportamento já implementado, e as histórias em revisão registram as lacunas dos testes.
+O grupo usou IA de forma ampla e declara isso aqui. Cada integrante registra o próprio uso.
 
-A IA foi usada como apoio à redação e à execução de tarefas; a revisão e a defesa das decisões cabem aos integrantes. Antes da entrega final, cada integrante deve complementar este registro com seu uso de IA, as sugestões descartadas e as atividades realizadas sem IA.
+### Modelos utilizados
 
-No deploy externo, Codex apoiou Dockerfile, configuracao por variaveis, script do Jenkins, testes e documentacao.
+| Integrante | Ferramenta e modelos |
+|---|---|
+| Raphael | Claude Code (Claude Sonnet 5 e Sonnet 5.5), em sessões de conversa no desktop |
+| Vinícius | Claude Code (Claude Opus 5.5) e Codex, em sessões de conversa no desktop |
+
+### Para que foi usada
+
+- **Raphael:** estrutura inicial do projeto Spring Boot, entidades JPA, migration Flyway, repositories, services, controllers e DTOs; instalação e configuração do Jenkins; análise dos refactorings de recursos e testes e execução dos builds de validação.
+- **Vinícius:** leitura do repositório, rascunho de requisitos e documentação, apoio ao Jenkinsfile e cadastro das histórias no Jira. No deploy externo, Codex apoiou Dockerfile, configuração por variáveis, script do Jenkins, testes e documentação.
+
+### Exemplos reais de prompts
+
+| # | Prompt (trecho, data) | O que a IA entregou | Aceito, ajustado ou descartado |
+|---|---|---|---|
+| 1 | "Inicie um projeto spring boot utilizando mysql, Lombok, DevTools e Spring web. Maven… JUnit 5 + Mockito… Flyway… e já crie somente as entidades e a estrutura de pastas do sistema" | Projeto Spring Boot 4.0.0, pacotes por camada e sete entidades (Usuário, Recurso com herança para sala, quadra e equipamento, regra de cancelamento, reserva) | Aceito, com ajuste: a IA removeu um enum que ficou sem uso e deixou `ddl-auto=none` até existir migration. |
+| 2 | "Vamos definir e levantar os requisitos para os Repositories e controllers da aplicação" | Requisitos para a criação dos Repositories e controllers, e também DTOs, services, exceções e tratador global de erros, porque os controllers dependem deles | Aceito. A IA apontou que a senha estava em texto puro; isso foi corrigido depois por Vinícius com BCrypt (PRs #6 e #11). |
+| 3 | "Preparar a API Java 21 para deploy no Render com Docker e TiDB, utilizando variáveis de ambiente, TLS e health check. Integrar ao Jenkins e verificar se o SHA publicado corresponde ao commit testado." | Configuração de deploy com Docker, integração com TiDB, variáveis de ambiente, TLS e health check. Integração com Jenkins e validação do SHA do commit publicado. | Aceito. Configuração aplicada no PR #7 e deploy externo validado, confirmando a correspondência entre o código testado e o publicado. |
+| 4 | "Refatorar o ReservaService, separando a montagem da reserva e o cálculo da multa em métodos próprios, preservando as regras existentes e validando o comportamento com testes antes e depois." | Refatoração do ReservaService, extraindo métodos específicos para montagem da reserva e cálculo da multa. Execução de testes antes e depois das alterações para verificar a preservação das regras de negócio. | Aceito. Extrações aplicadas no PR #8, com testes antes e depois para validar que o comportamento original foi preservado. |
+
+Sugestão descartada: a IA propôs simplificar os DTOs (records para classes) e encurtar os nomes dos testes; o grupo manteve o código como estava.
+
+### Dinâmica de uso
+
+O uso foi individual. A IA gerou alguns códigos, executou comandos e ajudou com a documentação. Não houve revisão de PR feita por IA no GitHub; a revisão dos PRs é entre os integrantes.
+
+### O que não foi feito por IA
+
+- **Definição do projeto:** o tema (reserva de salas, quadras e equipamentos), as regras de negócio (uma regra de cancelamento por recurso, com antecedência mínima e multa) e a decisão de entregar só o backend foram definidos pelos integrantes. *(Raphael)*
+- **Teste do `UsuarioController`:** teste do `UsuarioController` sem banco de dados, no lugar do teste de contexto *(Raphael)*
+- **Decisões de ferramenta:** usar Jenkins e Render com TiDB, e reverter o BCrypt no PR #10 para depois restaurá-lo no #11. *(Vinícius)*
+- **Operação manual do Jenkins:** a criação das credenciais do Render, o disparo dos builds e a conferência do resultado foram feitos à mão. *(Raphael)*
+- **Jira:** organização do quadro e da sprint, e atualização dos status dos cartões. *(Vinícius)*
+- **Revisão e aprovação dos PRs #13, #14, #16 e #17**, e os merges. *(Vinícius e Raphael)*
+- **Entendimento do código:** cada integrante revisou o que foi gerado e sabe explicar suas partes.
 
 ## Equipe
 
