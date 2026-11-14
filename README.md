@@ -64,6 +64,8 @@ cd backend
 
 O relatório de cobertura é gerado em `backend/target/site/jacoco/index.html`.
 
+Em 14/11/2026, a revisão do PR #14 combinada à `main` passou em 55 testes Java e seis testes PowerShell, sem falhas ou testes ignorados, com 65,90% de cobertura de linhas. A árvore testada corresponde ao merge `8ebce6e`. Essa execução foi local; a execução final do Jenkins é uma evidência separada. [Resumo da validação](docs/evidencias/validacao-local-final.json).
+
 ## Endpoints
 
 | Método | Rota | Descrição |
@@ -77,6 +79,7 @@ O relatório de cobertura é gerado em `backend/target/site/jacoco/index.html`.
 | GET | `/recursos` | Lista recursos |
 | GET | `/recursos/{id}` | Busca recurso |
 | PATCH | `/recursos/{id}/desativar` | Desativa o recurso (ele deixa de aceitar novas reservas) |
+| PATCH | `/recursos/{id}/ativar` | Reativa o recurso para novas reservas |
 | PUT | `/recursos/{id}/regra-cancelamento` | Define a regra de cancelamento do recurso |
 | GET | `/recursos/{id}/regra-cancelamento` | Consulta a regra de cancelamento |
 | POST | `/reservas` | Cria reserva |
@@ -116,13 +119,15 @@ Use IDs existentes e um período futuro livre ao repetir o exemplo.
 | RF09 | Rejeitar reserva com fim igual ou anterior ao início, ou com início no passado. | Implementado |
 | RF10 | Rejeitar reserva que se sobreponha a outra reserva não cancelada do mesmo recurso. Os períodos são tratados como [início, fim), então uma reserva pode começar no horário em que outra termina. | Implementado |
 | RF11 | Criar toda reserva com status PENDENTE e permitir a confirmação apenas de reservas pendentes. | Implementado |
-| RF12 | Cancelar reserva com motivo opcional, exceto quando ela já estiver cancelada ou quando o recurso não permitir cancelamento. | Implementado |
+| RF12 | Cancelar reserva com motivo opcional antes do início, exceto quando ela já estiver cancelada ou quando o recurso não permitir cancelamento. | Implementado |
 | RF13 | Aplicar o percentual de multa da regra quando o cancelamento ocorrer com antecedência menor que a mínima. | Implementado |
 | RF14 | Listar reservas, com filtro opcional por usuário e/ou recurso, e buscar reserva por id. | Implementado |
 | RF15 | Autenticar usuários e permitir que apenas o dono da reserva a cancele. | Pendente |
-| RF16 | Ativar e desativar recursos; recursos inativos não aceitam novas reservas. | Pendente |
-| RF17 | Impedir o cancelamento de reservas já iniciadas ou encerradas. | Pendente |
+| RF16 | Ativar e desativar recursos; recursos inativos não aceitam novas reservas. | Implementado no PR #14; aceite na versão pública atual pendente |
+| RF17 | Impedir o cancelamento de reservas já iniciadas ou encerradas. | Implementado no PR #14; aceite na versão pública atual pendente |
 | RF18 | Editar e excluir usuários, recursos e reservas. | Pendente |
+
+Desativar um recurso preserva seu cadastro e as reservas existentes. O bloqueio de cancelamento a partir do início vale tanto para reservas pendentes quanto para confirmadas. Autenticação, autorização e edição/exclusão continuam fora deste incremento.
 
 ## Requisitos não funcionais
 
@@ -177,7 +182,7 @@ No ambiente publicado, a lista de acesso do TiDB contém apenas os intervalos `7
 
 ### API no Render
 
-Após integrar os PRs, crie um **Web Service** na região **Virginia**, com o repositório público do grupo, branch `main`, linguagem **Docker**, Dockerfile `./Dockerfile`, contexto `.` e plano **Free**. Defina o health check como `/actuator/health` e desative o deploy automático; o Jenkins aciona a publicação pelo hook. O arquivo `render.yaml` registra essa configuração. [Docker no Render](https://render.com/docs/docker).
+O serviço existente usa a região **Virginia**, o repositório público do grupo, branch `main`, linguagem **Docker**, Dockerfile `./Dockerfile`, contexto `.` e plano **Free**. O health check é `/actuator/health`, e o deploy automático está desativado; o Jenkins aciona a publicação pelo hook. Para reproduzir essa configuração, consulte `render.yaml`. [Docker no Render](https://render.com/docs/docker).
 
 Configure estas variáveis no Render:
 
@@ -219,11 +224,11 @@ Em 05/11/2026: imagem Docker gerada; 36 testes Java e seis testes do script pass
 
 Em 12/11/2026: a aplicação executou com TiDB 8.5.2 local e limite de 512 MB. A migration original passou; foram verificados cadastro, reserva, conflito de horário (HTTP 409), consulta com filtros, confirmação e cancelamento. Os três `CHECK` e as chaves estrangeiras rejeitaram dados inválidos. Os registros persistiram após reiniciar a API e o banco, e o health check retornou HTTP 503 com o banco interrompido. O consumo observado da API foi de aproximadamente 352 MB.
 
-Na mesma data, a imagem Docker foi conectada ao TiDB Cloud Starter 8.5.3 em Virginia, com `sslMode=VERIFY_IDENTITY` e as autoridades certificadoras padrão do Java 21. A migration V1 original criou as tabelas; os três `CHECK` e as chaves estrangeiras rejeitaram inserções inválidas. Cadastro, e-mail único, reserva, conflito de horário e confirmação passaram. Após substituir o contêiner da API, o usuário e a reserva confirmada continuaram salvos no banco. Também passaram os 36 testes Java e os seis testes do script de deploy, estes no PowerShell 5.1 e 7. A URL pública no Render e a execução da pipeline no Jenkins ainda estão pendentes.
+Na mesma data, a imagem Docker foi conectada ao TiDB Cloud Starter 8.5.3 em Virginia, com `sslMode=VERIFY_IDENTITY` e as autoridades certificadoras padrão do Java 21. A migration V1 original criou as tabelas; os três `CHECK` e as chaves estrangeiras rejeitaram inserções inválidas. Cadastro, e-mail único, reserva, conflito de horário e confirmação passaram. Após substituir o contêiner da API, o usuário e a reserva confirmada continuaram salvos no banco. Também passaram os 36 testes Java e os seis testes do script de deploy, estes no PowerShell 5.1 e 7. Naquela etapa, a URL pública no Render e a execução da pipeline no Jenkins ainda estavam pendentes.
 
-Em 13/11/2026, o Render publicou a `main` no commit `1dbd0f707ee3c3112d2a43f5bb04d3474732f5df`. A URL HTTPS respondeu com saúde `UP` e o SHA esperado. Passaram 12 grupos de verificações pela API, incluindo os três tipos de recurso, validações de cadastro, unicidade, conflito de horário, períodos adjacentes, confirmação e regras de cancelamento. Após um novo deploy pelo hook, o usuário e a reserva confirmada permaneceram salvos. Essa execução partiu da máquina local; os builds do Jenkins continuam pendentes. [Evidência da publicação](docs/evidencias/deploy-publico.json).
+Em 13/11/2026, o Render publicou a `main` no commit `1dbd0f707ee3c3112d2a43f5bb04d3474732f5df`. A URL HTTPS respondeu com saúde `UP` e o SHA esperado. Passaram 12 grupos de verificações pela API, incluindo os três tipos de recurso, validações de cadastro, unicidade, conflito de horário, períodos adjacentes, confirmação e regras de cancelamento. Após um novo deploy pelo hook, o usuário e a reserva confirmada permaneceram salvos. Essa execução partiu da máquina local; a execução final da `main` no Jenkins continua pendente. [Evidência da publicação](docs/evidencias/deploy-publico.json).
 
-Na revisão dos critérios do Jira, passaram também os 12 critérios das histórias US01, US02 e US06 na mesma versão pública: sobreposição parcial das 14h–16h com 15h–17h recusada, período adjacente aceito, períodos inválidos rejeitados, multa configurável de 20% aplicada conforme a antecedência, cancelamento bloqueado sem alterar o status e cadastro dos três tipos de usuário sem senha/hash nas respostas. [Resultados por critério](docs/evidencias/criterios-publicos.json). A revisão final e os builds do Jenkins continuam pendentes.
+Na revisão dos critérios do Jira, passaram também os 12 critérios das histórias US01, US02 e US06 na mesma versão pública: sobreposição parcial das 14h–16h com 15h–17h recusada, período adjacente aceito, períodos inválidos rejeitados, multa configurável de 20% aplicada conforme a antecedência, cancelamento bloqueado sem alterar o status e cadastro dos três tipos de usuário sem senha/hash nas respostas. [Resultados por critério](docs/evidencias/criterios-publicos.json). A revisão final e a execução final da `main` no Jenkins continua pendente.
 
 Para repetir a verificação e guardar os IDs de registros fictícios:
 
@@ -243,8 +248,8 @@ Tarefas: [reservas / SCRUM-12](https://reservas-c14.atlassian.net/browse/SCRUM-1
 |---|---|---|---|---|
 | Vinícius | `criar` mistura validação, montagem e persistência. | Extrair `montarReserva`, separando a construção da entidade das verificações. | [PR #8](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/8), commit `476febb` | Integrado pelo PR #8; Jenkins verde antes e depois |
 | Vinícius | `cancelar` concentra regra, cálculo de multa e mudança de estado. | Extrair `calcularPercentualMulta`, preservando o mesmo instante e a comparação de antecedência. | [PR #8](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/8), commit `1b6f428` | Integrado pelo PR #8; Jenkins verde antes e depois |
-| Raphael | Mapeamento extenso dos tipos de recurso: `RecursoResponse.de` concentra o mapeamento de todos os tipos em um só método (método longo). | Extrair `deSala`, `deQuadra`, `deEquipamento` e `deRecursoBase`. O motivo é deixar `de` apenas escolhendo o tipo e isolar cada mapeamento, o que facilita ler e alterar um tipo sem mexer nos outros; campos e proxies foram preservados. | [PR #13](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/13), commit `3828d14` | Aplicado; Jenkins verde antes e depois; revisão pendente |
-| Raphael | Preparação repetida nos testes de cancelamento: os mesmos mocks de reserva e de regra são configurados em cada teste (código duplicado). | Extrair os helpers `dadoReservaExistente` e `dadoRegraDoRecurso` em `ReservaServiceTest`. O motivo é reduzir a duplicação e deixar cada teste mostrando só o que o diferencia; as verificações não mudaram, e foram dois helpers porque um teste não pode configurar o repositório de regras. | [PR #13](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/13), commit `b4beaac` | Aplicado; Jenkins verde antes e depois; revisão pendente |
+| Raphael | Mapeamento extenso dos tipos de recurso: `RecursoResponse.de` concentra o mapeamento de todos os tipos em um só método (método longo). | Extrair `deSala`, `deQuadra`, `deEquipamento` e `deRecursoBase`. O motivo é deixar `de` apenas escolhendo o tipo e isolar cada mapeamento, o que facilita ler e alterar um tipo sem mexer nos outros; campos e proxies foram preservados. | [PR #13](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/13), commit `3828d14` | Integrado após revisão de Vinícius; Jenkins verde antes e depois conforme os resumos |
+| Raphael | Preparação repetida nos testes de cancelamento: os mesmos mocks de reserva e de regra são configurados em cada teste (código duplicado). | Extrair os helpers `dadoReservaExistente` e `dadoRegraDoRecurso` em `ReservaServiceTest`. O motivo é reduzir a duplicação e deixar cada teste mostrando só o que o diferencia; as verificações não mudaram, e foram dois helpers porque um teste não pode configurar o repositório de regras. | [PR #13](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/13), commit `b4beaac` | Integrado após revisão de Vinícius; Jenkins verde antes e depois conforme os resumos |
 
 Em 12/11/2026, `mvnw.cmd -B -ntp clean verify` com JDK 21 passou antes e depois dos dois refactorings de Vinícius: 40 testes, sem falhas. A cobertura de linhas foi de 61,93% para 62,50%. Os quatro testes novos e as verificações adicionais foram registrados antes das extrações, no commit `4ec64e1`; não contam como refactorings.
 
@@ -264,54 +269,50 @@ Na mesma data, o Jenkins executou a pipeline sobre as referências dos refactori
 
 [Quadro no Jira](https://reservas-c14.atlassian.net/jira/software/projects/SCRUM/boards/1) · [Backlog](https://reservas-c14.atlassian.net/jira/software/projects/SCRUM/boards/1/backlog)
 
-O quadro foi organizado em 30/10/2026 com Scrum adaptado à equipe de dois integrantes. A sprint atual, **Sprint E5**, vai de 30/10 a 13/11/2026. Seu objetivo é consolidar a documentação da E5, vincular código e testes e revisar os critérios de aceite das funcionalidades existentes. As melhorias novas ficam no backlog.
+O quadro foi organizado em 30/10/2026 com Scrum adaptado à equipe de dois integrantes. A Sprint E5 foi planejada para 30/10 a 13/11, com documentação, rastreabilidade e revisão das funcionalidades. O fechamento do projeto prosseguiu em 14/11, prazo prorrogado da entrega final. A revisão e a retrospectiva da sprint ainda precisam ser registradas com o grupo.
 
-Vinícius organiza o Jira, os requisitos e a documentação; Raphael mantém a pipeline e participa da revisão. Ambos desenvolvem e revisam as alterações do outro. Nos papéis do Scrum, Vinícius atua como Scrum Master e Raphael como Product Owner, responsável por priorizar o backlog, e ambos acumulam o papel de desenvolvedores.
+Vinícius organiza Jira, requisitos, documentação e deploy externo; Raphael mantém o Jenkins e prioriza o backlog. No Scrum adaptado, Vinícius atua como facilitador/Scrum Master, Raphael como Product Owner, e ambos desenvolvem e revisam código. O acompanhamento ocorreu pelo quadro e pelo chat do grupo; as funcionalidades anteriores à adoção do Jira foram relacionadas retrospectivamente. Não há registro de uma cadência regular de reuniões formais.
 
-O planejamento seleciona os itens no início da sprint. O acompanhamento ocorre pelo quadro e pelo chat do grupo, com atualização a cada mudança de status e registro dos impedimentos. A revisão do incremento e a retrospectiva ficam para o encerramento da sprint. O histórico dessas práticas começa com a adoção do Jira; as funcionalidades anteriores foram relacionadas ao código retrospectivamente.
-
-Fluxo de trabalho:
+### Fluxo, DoR e DoD
 
 - **To Do:** item planejado, aguardando execução.
 - **In Progress:** implementação, documentação ou validação em andamento.
-- **In Review:** aguardando revisão de PR ou validação dos critérios de aceite.
-- **Done:** critérios verificados e alteração integrada.
+- **In Review:** aguardando revisão de PR ou validação dos critérios.
+- **Done:** critérios verificados, testes e pipeline aprovados, documentação atualizada e alteração integrada após revisão de outro integrante.
 
-Para iniciar um item (DoR), a história deve ter objetivo, critérios de aceite, prioridade, requisito relacionado e responsável, com dependências identificadas. Para concluir (DoD), os critérios devem ser atendidos, os testes relevantes devem passar, a documentação deve estar atualizada e o PR deve ser aprovado por outro integrante e integrado. Alterações de código também precisam passar pela pipeline.
+Para iniciar um item (DoR), a história deve ter objetivo, critérios de aceite, prioridade, requisito relacionado, responsável e dependências identificadas. O Jira mantém esses dados e os critérios no formato Dado/Quando/Então. O estado técnico abaixo não substitui a conferência do DoD de cada cartão.
 
-Cada mudança usa uma branch e um PR; o outro integrante revisa, aprova e faz o merge. O PR deve citar a chave do Jira, por exemplo `SCRUM-8`. O cartão recebe o link do PR e dos testes correspondentes.
-
-O acompanhamento considera quantidade de itens por status, itens concluídos por sprint e tempo entre **In Progress** e **Done**, a partir do histórico do Jira. Ainda não há sprint concluída nem medição histórica de tempo de ciclo.
+As alterações usam branches, Conventional Commits e PRs. O outro integrante revisa antes do merge. Vinícius trabalha por fork porque sua conta continua sem permissão de escrita no repositório da organização; Raphael realiza os merges. Os PRs e testes são vinculados às histórias no Jira.
 
 ### Histórias e rastreabilidade
 
-Situação em 31/10/2026. O Jira concentra os critérios de aceite e o status atualizado.
+Situação técnica em 14/11/2026. O aceite público de 13/11 foi realizado em `1dbd0f7`; a versão final exige nova conferência após a pipeline.
 
-| História | Requisitos | Situação | Código e testes |
+| História | Requisitos | Situação técnica | PRs e testes |
 |---|---|---|---|
-| [US01 / SCRUM-5 — Reservar recurso](https://reservas-c14.atlassian.net/browse/SCRUM-5) | RF08–RF10 | In Review; funcionalidade existente, validação parcial | [PR #1](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/1), [PR #2](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/2), [API](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/commit/b760cab), [ReservaServiceTest](backend/src/test/java/com/reservas/sistemareservas/service/ReservaServiceTest.java), [ValidadorHorarioReservaTest](backend/src/test/java/com/reservas/sistemareservas/service/ValidadorHorarioReservaTest.java) e [testes de limites](backend/src/test/java/com/reservas/sistemareservas/service/ValidadorHorarioReservaLimitesTest.java) |
-| [US02 / SCRUM-6 — Cancelar reserva](https://reservas-c14.atlassian.net/browse/SCRUM-6) | RF07, RF12–RF13 | In Review; funcionalidade existente, validação parcial | [API](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/commit/b760cab), [testes do serviço](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/commit/102fc18), [PR #2](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/2), [ReservaServiceTest](backend/src/test/java/com/reservas/sistemareservas/service/ReservaServiceTest.java) e [RegraCancelamentoServiceTest](backend/src/test/java/com/reservas/sistemareservas/service/RegraCancelamentoServiceTest.java) |
-| [US03 / SCRUM-7 — Desativar recurso](https://reservas-c14.atlassian.net/browse/SCRUM-7) | RF16 | To Do; implementação pendente | PR e testes pendentes |
-| [US04 / SCRUM-8 — Armazenar senha com hash](https://reservas-c14.atlassian.net/browse/SCRUM-8) | RNF08 | In Review; restauração do BCrypt sobre a base com deploy externo | [SenhaConfig](backend/src/main/java/com/reservas/sistemareservas/config/SenhaConfig.java), [UsuarioService](backend/src/main/java/com/reservas/sistemareservas/service/UsuarioService.java), [UsuarioServiceTest](backend/src/test/java/com/reservas/sistemareservas/service/UsuarioServiceTest.java) e [UsuarioControllerTest](backend/src/test/java/com/reservas/sistemareservas/controller/UsuarioControllerTest.java) |
-| [US05 / SCRUM-9 — Impedir cancelamento após o início](https://reservas-c14.atlassian.net/browse/SCRUM-9) | RF17 | To Do; implementação pendente | PR e testes pendentes |
-| [US06 / SCRUM-10 — Cadastrar usuário](https://reservas-c14.atlassian.net/browse/SCRUM-10) | RF01–RF02 | In Review; funcionalidade existente, validação parcial | [API](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/commit/b760cab), [testes do serviço](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/commit/102fc18), [teste do controller](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/commit/695b328), [UsuarioServiceTest](backend/src/test/java/com/reservas/sistemareservas/service/UsuarioServiceTest.java) e [UsuarioControllerTest](backend/src/test/java/com/reservas/sistemareservas/controller/UsuarioControllerTest.java) |
-| [US07 / SCRUM-11 — Deploy externo](https://reservas-c14.atlassian.net/browse/SCRUM-11) | RNF06, RNF09 | In Progress; API pública e persistência verificadas, Jenkins pendente | [PR #7](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/7), [Dockerfile](Dockerfile), [Jenkinsfile](Jenkinsfile), [script de deploy](scripts/deploy-render.ps1), [testes do script](scripts/Test-DeployRender.ps1), [verificação HTTP](scripts/Test-CriteriosApi.ps1) e [evidência](docs/evidencias/deploy-publico.json) |
+| [US01 / SCRUM-5 — Reservar recurso](https://reservas-c14.atlassian.net/browse/SCRUM-5) | RF08–RF10 | Implementada; quatro critérios públicos verificados em 13/11; aceite final pendente | PRs [#1](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/1), [#2](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/2) e [#8](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/8); [ReservaServiceTest](backend/src/test/java/com/reservas/sistemareservas/service/ReservaServiceTest.java), [ValidadorHorarioReservaTest](backend/src/test/java/com/reservas/sistemareservas/service/ValidadorHorarioReservaTest.java) e [limites](backend/src/test/java/com/reservas/sistemareservas/service/ValidadorHorarioReservaLimitesTest.java) |
+| [US02 / SCRUM-6 — Cancelar reserva](https://reservas-c14.atlassian.net/browse/SCRUM-6) | RF07, RF12–RF13 | Implementada; quatro critérios públicos verificados em 13/11; aceite final pendente | PRs [#2](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/2) e [#8](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/8); [ReservaServiceTest](backend/src/test/java/com/reservas/sistemareservas/service/ReservaServiceTest.java) e [RegraCancelamentoServiceTest](backend/src/test/java/com/reservas/sistemareservas/service/RegraCancelamentoServiceTest.java) |
+| [US03 / SCRUM-7 — Desativar recurso](https://reservas-c14.atlassian.net/browse/SCRUM-7) | RF16 | Implementada e revisada; aceite público pendente | [PR #14](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/14); [RecursoServiceTest](backend/src/test/java/com/reservas/sistemareservas/service/RecursoServiceTest.java) e caso de recurso inativo em [ReservaServiceTest](backend/src/test/java/com/reservas/sistemareservas/service/ReservaServiceTest.java) |
+| [US04 / SCRUM-8 — Armazenar senha com hash](https://reservas-c14.atlassian.net/browse/SCRUM-8) | RNF08 | BCrypt integrado; cadastro público verificado; pipeline final pendente | PRs [#6](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/6) e [#11](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/11); [UsuarioServiceTest](backend/src/test/java/com/reservas/sistemareservas/service/UsuarioServiceTest.java) e [UsuarioControllerTest](backend/src/test/java/com/reservas/sistemareservas/controller/UsuarioControllerTest.java) |
+| [US05 / SCRUM-9 — Impedir cancelamento após o início](https://reservas-c14.atlassian.net/browse/SCRUM-9) | RF17 | Implementada e revisada; aceite público pendente | [PR #14](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/14); [ReservaServiceCancelamentoIniciadaTest](backend/src/test/java/com/reservas/sistemareservas/service/ReservaServiceCancelamentoIniciadaTest.java) |
+| [US06 / SCRUM-10 — Cadastrar usuário](https://reservas-c14.atlassian.net/browse/SCRUM-10) | RF01–RF02 | Implementada; quatro critérios públicos verificados em 13/11; aceite final pendente | PRs [#6](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/6) e [#11](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/11); [UsuarioServiceTest](backend/src/test/java/com/reservas/sistemareservas/service/UsuarioServiceTest.java) e [UsuarioControllerTest](backend/src/test/java/com/reservas/sistemareservas/controller/UsuarioControllerTest.java) |
+| [US07 / SCRUM-11 — Deploy externo](https://reservas-c14.atlassian.net/browse/SCRUM-11) | RNF06, RNF09 | API pública e persistência verificadas; execução final pelo Jenkins pendente | PRs [#7](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/7) e [#12](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/12); [Jenkinsfile](Jenkinsfile), [testes do script](scripts/Test-DeployRender.ps1), [verificação HTTP](scripts/Test-CriteriosApi.ps1) e [evidência](docs/evidencias/deploy-publico.json) |
 
-Na US01 e na US02, os testes adicionais de início no passado e segunda tentativa de cancelamento estão no PR #8, ainda em revisão. A execução local com TiDB real já comprovou o conflito HTTP 409 e os fluxos de reserva. Os mocks continuam sendo testes isolados e não executam a consulta SQL.
+Os [12 critérios públicos de US01, US02 e US06](docs/evidencias/criterios-publicos.json) complementam os testes unitários. Mocks de repositórios verificam regras em isolamento; os scripts HTTP verificam a aplicação conectada ao banco real. A validação local mais recente passou em 55 testes Java e seis PowerShell. Cada integrante cadastrou ao menos uma história: US01 a US05 na conta de Vinícius e US06 na de Raphael. A E5 foi enviada pelo líder; a confirmação de acesso do monitor ao Jira continua pendente.
 
-Na US06, os testes do controller cobrem criação com HTTP 201, consultas sem senha ou hash, e-mail inválido com HTTP 400, limite de senha com HTTP 422 e usuário inexistente com HTTP 404. Os casos unitários de HTTP 409, nome vazio, senha curta e tipo ausente ainda não estão nessa classe. Em 12/11/2026, a restauração do BCrypt com a configuração de deploy passou em 44 testes Java e seis testes PowerShell; os builds do Jenkins continuam pendentes.
+### Métricas e dinâmica
 
-Cada integrante cadastrou ao menos uma história: as US01 a US05 estão na conta do Vinícius, e a US06, na do Raphael. A E5 ainda depende da revisão e integração deste README, da conferência do acesso do monitor ao Jira e do envio dos links pelo líder.
+Na consulta ao GitHub em 14/11/2026, antes deste fechamento documental, havia 14 PRs: 13 integrados e um fechado sem merge. Os PRs #13 e #14 receberam aprovação de Vinícius antes da integração. São métricas do repositório; o encerramento e as métricas da sprint ainda dependem da conferência do Jira. Não foram medidos tempo de ciclo ou velocidade por pontos.
 
-As tarefas de acompanhamento são [documentação / SCRUM-1](https://reservas-c14.atlassian.net/browse/SCRUM-1), [revisão do README / SCRUM-2](https://reservas-c14.atlassian.net/browse/SCRUM-2) e [participação, acesso e envio / SCRUM-3](https://reservas-c14.atlassian.net/browse/SCRUM-3). Elas substituíram os cartões de exemplo criados no cadastro inicial.
+Raphael concentrou a implementação inicial da API e da pipeline. Vinícius contribuiu com validação de horários, testes, quality gate, BCrypt, deploy externo, documentação, Jira e dois refactorings de reservas. Raphael aplicou os dois refactorings de recursos/testes e as funcionalidades do PR #14. Os quatro refactorings estão integrados.
+
+O bloqueio de permissão foi contornado com fork e revisão por PR. Durante a integração do deploy, o BCrypt foi revertido e depois restaurado no PR #11. A sequência mostrou a necessidade de atualizar a branch sobre a `main`, resolver conflitos preservando ambas as funcionalidades e validar a combinação antes do merge. Para os próximos ciclos, o grupo deve distribuir trabalho de código mais cedo, usar alterações menores e registrar evidências da pipeline junto de cada revisão.
+
+As tarefas de acompanhamento são [documentação / SCRUM-1](https://reservas-c14.atlassian.net/browse/SCRUM-1), [revisão do README / SCRUM-2](https://reservas-c14.atlassian.net/browse/SCRUM-2) e [participação, acesso e envio / SCRUM-3](https://reservas-c14.atlassian.net/browse/SCRUM-3). O checklist dos 14 critérios e das pendências de envio está em [docs/entrega-final.md](docs/entrega-final.md).
 
 ## Uso de IA
 
-Foram usados Claude Opus 5.5, na sessão anterior, e Codex, na organização da E5, para leitura do repositório, rascunho de requisitos e documentação, apoio ao Jenkinsfile e cadastro das histórias no Jira. Os requisitos pendentes foram separados do comportamento já implementado, e as histórias em revisão registram as lacunas dos testes.
-
-A IA foi usada como apoio à redação e à execução de tarefas; a revisão e a defesa das decisões cabem aos integrantes. Antes da entrega final, cada integrante deve complementar este registro com seu uso de IA, as sugestões descartadas e as atividades realizadas sem IA.
-
-No deploy externo, Codex apoiou Dockerfile, configuracao por variaveis, script do Jenkins, testes e documentacao.
+Vinícius utilizou Claude Opus 5.5 e Codex; Raphael, ChatGPT e Claude. O apoio incluiu pesquisa, código, testes, refactorings, CI/CD, documentação e organização do Jira. Os integrantes são responsáveis pelas decisões, revisão e validação dos resultados.
 
 ## Equipe
 

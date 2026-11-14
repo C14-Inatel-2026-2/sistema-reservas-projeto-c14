@@ -1,0 +1,33 @@
+{
+  "data": "2026-11-14",
+  "ambiente": "Local: JDK 21 e Windows PowerShell 5.1",
+  "commitMain": "8ebce6e1fa08057bcad578bd0ed03e663255946b",
+  "arvoreGit": "e992e7f06c11db7e5ef11cbcf3343d8798091996",
+  "referenciaTestada": {
+    "pr": 14,
+    "head": "55f52fd7e80858c9f78ef885bf5a4ce9f2e690a3",
+    "mainCombinada": "9819674f1fa27eef53d71709a8cc5b4aeda54a9e",
+    "comparacao": "Arvore identica ao merge integrado na main."
+  },
+  "java": {
+    "tests": 55,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "deploy": {
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "coberturaLinhas": 65.9,
+  "linhasCobertas": 143,
+  "linhasNaoCobertas": 74,
+  "comandos": [
+    "backend/mvnw.cmd -B -ntp clean verify",
+    "scripts/Test-DeployRender.ps1"
+  ],
+  "jenkinsMain": "Pendente de confirmacao; esta evidencia registra somente a execucao local.",
+  "relatorios": "JUnit e JaCoCo completos preservados localmente; os resumos do Jenkins antes/depois dos refactorings permanecem nos arquivos proprios."
+}
