@@ -96,7 +96,7 @@ Situação em 13/11/2026: 55 testes Java (JUnit 5 e Mockito) e 6 testes do scrip
 | GET | `/reservas?usuarioId=&recursoId=` | Lista reservas (filtros opcionais) |
 | GET | `/reservas/{id}` | Busca reserva |
 | PATCH | `/reservas/{id}/confirmar` | Confirma reserva pendente |
-| PATCH | `/reservas/{id}/cancelar` | Cancela reserva (corpo opcional: `{"motivo": "..."}`) |
+| PATCH | `/reservas/{id}/cancelar` | Cancela reserva ainda não iniciada (422 se já começou; corpo opcional: `{"motivo": "..."}`) |
 
 Exemplo de criação de reserva:
 
