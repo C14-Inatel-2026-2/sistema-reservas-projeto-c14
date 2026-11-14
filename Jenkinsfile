@@ -34,13 +34,18 @@ pipeline {
             }
         }
 
-        stage('Cobertura') {
+        stage('Quality Gate') {
             steps {
                 recordCoverage(
                     tools: [[parser: 'JACOCO', pattern: 'backend/target/site/jacoco/jacoco.xml']],
                     sourceCodeRetention: 'EVERY_BUILD',
                     qualityGates: [[threshold: 40.0, metric: 'LINE', baseline: 'PROJECT', criticality: 'UNSTABLE']]
                 )
+            }
+        }
+
+        stage('Cobertura') {
+            steps {
                 publishHTML(target: [
                     reportName: 'Cobertura JaCoCo',
                     reportDir: 'backend/target/site/jacoco',

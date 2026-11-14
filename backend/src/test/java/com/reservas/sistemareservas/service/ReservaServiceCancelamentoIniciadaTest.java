@@ -14,6 +14,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
@@ -22,6 +23,8 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -77,6 +80,35 @@ class ReservaServiceCancelamentoIniciadaTest {
         assertThrows(RegraNegocioException.class, () -> reservaService.cancelar(5L, null));
 
         assertEquals(StatusReserva.PENDENTE, reserva.getStatus());
+    }
+
+    @Test
+    void cancelar_reservaEncerrada_lancaRegraNegocioEPreservaDados() {
+        Reserva reserva = dadoReservaComecandoEm(LocalDateTime.now().minusHours(3), StatusReserva.CONFIRMADA);
+
+        assertThrows(RegraNegocioException.class, () -> reservaService.cancelar(5L, null));
+
+        assertEquals(StatusReserva.CONFIRMADA, reserva.getStatus());
+        assertNull(reserva.getCanceladoEm());
+        assertNull(reserva.getMotivoCancelamento());
+        verifyNoInteractions(regraRepository);
+    }
+
+    @Test
+    void cancelar_noInstanteExatoDoInicio_lancaRegraNegocioEPreservaDados() {
+        LocalDateTime agora = LocalDateTime.of(2026, 11, 14, 12, 0);
+
+        try (MockedStatic<LocalDateTime> horario = mockStatic(LocalDateTime.class, CALLS_REAL_METHODS)) {
+            horario.when(LocalDateTime::now).thenReturn(agora);
+            Reserva reserva = dadoReservaComecandoEm(agora, StatusReserva.CONFIRMADA);
+
+            assertThrows(RegraNegocioException.class, () -> reservaService.cancelar(5L, null));
+
+            assertEquals(StatusReserva.CONFIRMADA, reserva.getStatus());
+            assertNull(reserva.getCanceladoEm());
+            assertNull(reserva.getMotivoCancelamento());
+            verifyNoInteractions(regraRepository);
+        }
     }
 
     @Test
