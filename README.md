@@ -408,7 +408,7 @@ As decisões foram tomadas em conversa no chat do grupo. As principais: Spring B
 ### Branches, commits e revisão
 
 - **Commits:** padrão Conventional Commits em português (`feat`, `fix`, `test`, `docs`, `chore`, `ci`, `refactor`).
-- **Branches:** no início, parte do código foi enviada direto para a `main`. Depois, o Vinícius passou a abrir PRs a partir de branches do fork dele. Há várias PRs, e a `main` foi atualizada por merge.
+- **Branches:** no início, parte do código foi enviada direto para a `main`. Depois, o Vinícius passou a abrir PRs a partir de branches do fork dele. Há vários PRs, e a `main` foi atualizada por merge.
 - **Revisão:** Os PRs foram mesclados sem revisões nem comentários registrados no GitHub; as revisões dos PRs anteriores foram feitas depois e as dos novos passaram a ser registradas no GitHub antes do merge.
 
 ### Conflitos e bloqueios
