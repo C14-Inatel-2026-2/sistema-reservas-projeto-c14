@@ -16,7 +16,7 @@ O Render Free pode hibernar após 15 minutos sem tráfego. A primeira chamada ap
 - Java 21, Spring Boot 4, Maven (wrapper incluso)
 - MySQL 8 no ambiente local, TiDB Cloud Starter no deploy e Flyway (migrations)
 - Spring Data JPA, Bean Validation, Lombok, Spring Security Crypto (BCrypt)
-- JUnit 5, Mockito, JaCoCo
+- JUnit, Mockito, JaCoCo
 - Spring Boot Actuator (saúde e commit publicado)
 - Jenkins (CI/CD)
 
@@ -74,7 +74,7 @@ cd backend
 
 O relatório de cobertura é gerado em `backend/target/site/jacoco/index.html`.
 
-Situação em 14/11/2026 (build #9 do Jenkins na `main`): 57 testes Java (JUnit 5 e Mockito) e 6 testes do script de deploy em PowerShell, todos passando. A cobertura de linhas medida pelo JaCoCo é de 65,9%.
+Situação em 14/11/2026 (build #9 do Jenkins na `main`): 57 testes Java (JUnit e Mockito) e 6 testes do script de deploy em PowerShell, todos passando. A cobertura de linhas medida pelo JaCoCo é de 65,9%.
 
 ## Endpoints
 
@@ -343,7 +343,7 @@ Os critérios foram verificados nos testes automatizados e chamando a API em exe
 | US02 Cancelar reserva | SCRUM-6 | Alta | Entregue | commit `b760cab` (sem PR) e [PR #8](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/8) (refactor do cálculo de multa) | `ReservaServiceTest` (cancelar_*), commit `102fc18` e [PR #2](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/2) |
 | US03 Desativar recurso | SCRUM-7 | Média | Entregue | [PR #14](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/14) | `RecursoServiceTest` |
 | US04 Senha com hash | SCRUM-8 | Média | Entregue | [PR #6](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/6), revertido no [PR #10](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/10) e restaurado no [PR #11](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/11) | `UsuarioServiceTest`, `UsuarioControllerTest` |
-| US05 Bloquear cancelamento após o início | SCRUM-9 | Média | Entregue | [PR #14](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/14) e [PR #17](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/17) (testes de limite) | `ReservaServiceCancelamentoIniciadaTest` |
+| US05 Bloquear cancelamento após o início | SCRUM-9 | Alta | Entregue | [PR #14](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/14) e [PR #17](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/17) (testes de limite) | `ReservaServiceCancelamentoIniciadaTest` |
 | US06 Cadastrar usuário | SCRUM-10 | Alta | Entregue | commit `b760cab` (sem PR); registro da história no [PR #5](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/5) | `UsuarioServiceTest`, `UsuarioControllerTest` (commit `102fc18`) |
 | US07 Deploy externo | SCRUM-11 | Média | Entregue | commit `9b05d2b` (Jenkinsfile), [PR #7](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/7) e [PR #12](https://github.com/C14-Inatel-2026-2/sistema-reservas-projeto-c14/pull/12) | testes do script de deploy (PowerShell) |
 
